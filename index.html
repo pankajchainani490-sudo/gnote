@@ -96,6 +96,11 @@
           <div class="notes-editor-container hidden" id="editor-active-state">
             <div class="editor-header">
               <div class="editor-title-row">
+                <button id="btn-back-to-list" class="btn btn-secondary btn-icon mobile-only" title="返回列表" style="margin-right: 8px;">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display: block;">
+                    <polyline points="15 18 9 12 15 6"></polyline>
+                  </svg>
+                </button>
                 <input type="text" id="note-title" placeholder="无标题笔记" class="note-title-input">
                 <div class="editor-actions">
                   <span id="save-status" class="save-status">已保存</span>
@@ -136,6 +141,14 @@
                 <option value="P3">P3 低</option>
               </select>
             </div>
+          </div>
+
+          <!-- Mobile Kanban Tabs Selector -->
+          <div class="mobile-kanban-tabs mobile-only">
+            <button class="kanban-tab active" data-status="todo">待办 <span class="tab-count" id="tab-count-todo">0</span></button>
+            <button class="kanban-tab" data-status="doing">进行中 <span class="tab-count" id="tab-count-doing">0</span></button>
+            <button class="kanban-tab" data-status="done">已完成 <span class="tab-count" id="tab-count-done">0</span></button>
+            <button class="kanban-tab" data-status="abandoned">已放弃 <span class="tab-count" id="tab-count-abandoned">0</span></button>
           </div>
 
           <!-- Today's Focus Widget -->

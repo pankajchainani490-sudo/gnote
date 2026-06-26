@@ -151,6 +151,29 @@ export const NotesView = {
       document.getElementById('btn-toggle-gantt').innerText = isCollapsed ? '▼' : '◀';
     });
 
+    // 5. Mobile Back to List Button
+    const btnBack = document.getElementById('btn-back-to-list');
+    if (btnBack) {
+      btnBack.addEventListener('click', () => {
+        const layout = document.querySelector('.notes-layout');
+        if (layout) {
+          layout.classList.remove('viewing-editor');
+        }
+        activeNoteId = null;
+        // Deselect active list item
+        const items = document.querySelectorAll('.note-item');
+        items.forEach(item => item.classList.remove('active'));
+        
+        // After transition, restore display status
+        setTimeout(() => {
+          if (!activeNoteId) {
+            document.getElementById('editor-active-state').classList.add('hidden');
+            document.getElementById('editor-empty-state').classList.remove('hidden');
+          }
+        }, 300);
+      });
+    }
+
     this.renderList();
   },
 
@@ -252,6 +275,11 @@ export const NotesView = {
     const note = currentDb.getNote(id);
     if (!note) return;
 
+    const layout = document.querySelector('.notes-layout');
+    if (layout) {
+      layout.classList.add('viewing-editor');
+    }
+
     document.getElementById('editor-empty-state').classList.add('hidden');
     document.getElementById('editor-active-state').classList.remove('hidden');
 
@@ -281,6 +309,12 @@ export const NotesView = {
     if (confirm('确认删除此笔记吗？这也会删除笔记中关联的全部任务。')) {
       currentDb.deleteNote(activeNoteId);
       activeNoteId = null;
+      
+      const layout = document.querySelector('.notes-layout');
+      if (layout) {
+        layout.classList.remove('viewing-editor');
+      }
+
       document.getElementById('editor-active-state').classList.add('hidden');
       document.getElementById('editor-empty-state').classList.remove('hidden');
       this.renderList();

@@ -1416,6 +1416,10 @@ h1 {
   display: none !important;
 }
 
+.mobile-only {
+  display: none !important;
+}
+
 /* --- COLLAPSED STATES & TRANSITIONS --- */
 .sidebar {
   position: relative;
@@ -1599,6 +1603,11 @@ h1 {
 
 /* --- MOBILE RESPONSIVE CSS --- */
 @media (max-width: 768px) {
+  /* Helper to toggle mobile elements */
+  .mobile-only {
+    display: inline-flex !important;
+  }
+
   /* Bottom tab navigation layout */
   .app-container {
     flex-direction: column-reverse;
@@ -1652,33 +1661,152 @@ h1 {
     padding: 0;
   }
 
-  /* Notes View mobile adjustments */
+  /* Notes View mobile transitions */
   .notes-layout {
-    flex-direction: column;
-    margin: 0;
+    display: flex;
+    flex-direction: row;
+    width: 100%;
     height: 100%;
-    gap: 16px;
+    overflow: hidden;
+    position: relative;
+    margin: 0;
+    gap: 0;
   }
 
   .notes-sidebar {
-    width: 100%;
-    height: 250px;
+    width: 100% !important;
+    height: 100% !important;
     border-right: none;
-    border-bottom: 1px solid var(--border-light);
+    border-bottom: none;
+    flex-shrink: 0;
+    transition: transform 0.3s ease;
   }
 
-  .notes-editor-container {
-    height: calc(100% - 266px);
+  /* Hide edge handle on mobile */
+  #handle-toggle-notes {
+    display: none !important;
   }
 
-  /* Kanban Board mobile stack */
+  /* Editor states on mobile */
+  #editor-empty-state {
+    display: none !important;
+  }
+
+  #editor-active-state {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100% !important;
+    height: 100% !important;
+    background-color: var(--bg-primary);
+    transform: translateX(100%);
+    transition: transform 0.3s ease;
+    z-index: 10;
+    display: flex !important;
+  }
+
+  #editor-active-state.hidden {
+    display: none !important;
+  }
+
+  .notes-layout.viewing-editor .notes-sidebar {
+    transform: translateX(-100%);
+  }
+
+  .notes-layout.viewing-editor #editor-active-state {
+    transform: translateX(0);
+  }
+
+  /* Mobile Kanban Tab Selector */
+  .mobile-kanban-tabs {
+    display: flex;
+    background-color: var(--bg-sidebar);
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius-md);
+    padding: 4px;
+    margin-bottom: 16px;
+    gap: 4px;
+  }
+
+  .kanban-tab {
+    flex: 1;
+    border: none;
+    background: transparent;
+    padding: 8px 4px;
+    font-size: 0.8rem;
+    font-weight: 500;
+    color: var(--text-secondary);
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    transition: all 0.2s ease;
+  }
+
+  .kanban-tab.active {
+    background-color: var(--bg-primary);
+    color: var(--color-primary);
+    font-weight: 600;
+    box-shadow: var(--shadow-sm);
+  }
+
+  .tab-count {
+    font-size: 0.7rem;
+    opacity: 0.8;
+  }
+
+  /* Kanban Board columns display logic on mobile */
   .kanban-board {
-    grid-template-columns: 1fr;
-    gap: 16px;
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    gap: 0;
   }
 
   .kanban-column {
+    display: none !important;
     min-height: auto;
+    width: 100%;
+  }
+
+  /* Show only the active column */
+  .kanban-board.show-todo [data-status="todo"],
+  .kanban-board.show-doing [data-status="doing"],
+  .kanban-board.show-done [data-status="done"],
+  .kanban-board.show-abandoned [data-status="abandoned"] {
+    display: flex !important;
+  }
+
+  /* Metrics & Insights adjustments */
+  .metrics-row {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 12px;
+  }
+
+  .insights-charts-grid {
+    grid-template-columns: 1fr !important;
+    gap: 16px;
+  }
+
+  .heatmap-wrapper {
+    overflow-x: auto;
+    width: 100%;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .heatmap-wrapper table {
+    min-width: 600px;
+  }
+
+  /* Floating toolbar wrap protection */
+  .floating-toolbar {
+    max-width: 90vw;
+    overflow-x: auto;
+    white-space: nowrap;
+    -webkit-overflow-scrolling: touch;
+    padding: 6px 8px;
   }
 
   /* Milestones and Gantt mobile adjustments */
@@ -1700,3 +1828,4 @@ h1 {
     padding: 16px;
   }
 }
+

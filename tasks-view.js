@@ -33,6 +33,28 @@ export const TasksView = {
       col.addEventListener('drop', (e) => this.handleCardDrop(e));
     });
 
+    // Mobile Kanban Tab listeners
+    const kanbanTabs = document.querySelectorAll('.mobile-kanban-tabs .kanban-tab');
+    const board = document.querySelector('.kanban-board');
+    
+    // Set default active view on board
+    if (board) {
+      board.classList.add('show-todo');
+    }
+
+    kanbanTabs.forEach(tab => {
+      tab.addEventListener('click', () => {
+        kanbanTabs.forEach(t => t.classList.remove('active'));
+        tab.classList.add('active');
+        
+        const status = tab.dataset.status;
+        if (board) {
+          board.classList.remove('show-todo', 'show-doing', 'show-done', 'show-abandoned');
+          board.classList.add(`show-${status}`);
+        }
+      });
+    });
+
     // Initial render
     this.renderFilters();
     this.renderBoard();
@@ -80,6 +102,17 @@ export const TasksView = {
     document.getElementById('count-doing').innerText = countDoing;
     document.getElementById('count-done').innerText = countDone;
     document.getElementById('count-abandoned').innerText = countAbandoned;
+
+    // Populate counts in mobile tabs
+    const tabTodoCount = document.getElementById('tab-count-todo');
+    const tabDoingCount = document.getElementById('tab-count-doing');
+    const tabDoneCount = document.getElementById('tab-count-done');
+    const tabAbandonedCount = document.getElementById('tab-count-abandoned');
+
+    if (tabTodoCount) tabTodoCount.innerText = countTodo;
+    if (tabDoingCount) tabDoingCount.innerText = countDoing;
+    if (tabDoneCount) tabDoneCount.innerText = countDone;
+    if (tabAbandonedCount) tabAbandonedCount.innerText = countAbandoned;
 
     // Render cards
     filteredTasks.forEach(task => {
