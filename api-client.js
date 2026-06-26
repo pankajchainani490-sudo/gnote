@@ -1,0 +1,93 @@
+// api-client.js - Light HTTP Client for NoteFlow backend sync
+
+export const apiClient = {
+  getServerUrl() {
+    return localStorage.getItem('noteflow_server_url') || '';
+  },
+
+  getApiKey() {
+    return localStorage.getItem('noteflow_api_key') || '';
+  },
+
+  configure({ serverUrl, apiKey }) {
+    if (serverUrl) {
+      // Clean up serverUrl trailing slash
+      const cleanUrl = serverUrl.replace(/\/$/, '');
+      localStorage.setItem('noteflow_server_url', cleanUrl);
+    } else {
+      localStorage.removeItem('noteflow_server_url');
+    }
+
+    if (apiKey) {
+      localStorage.setItem('noteflow_api_key', apiKey);
+    } else {
+      localStorage.removeItem('noteflow_api_key');
+    }
+  },
+
+  isConfigured() {
+    return !!this.getServerUrl() && !!this.getApiKey();
+  },
+
+  async request(method, path, body = null) {
+    if (!this.isConfigured()) {
+      return null;
+    }
+
+    const url = `${this.getServerUrl()}${path}`;
+    const headers = {
+      'Content-Type': 'application/json',
+      'X-API-Key': this.getApiKey()
+    };
+
+    const options = {
+      method,
+      headers
+    };
+
+    if (body && (method === 'POST' || method === 'PUT')) {
+      options.body = JSON.stringify(body);
+    }
+
+    try {
+      const response = await fetch(url, options);
+      if (!response.ok) {
+        console.warn(`API Request failed with status ${response.status}: ${response.statusText}`);
+        if (response.status === 401) {
+          // Trigger event for invalid configuration
+          window.dispatchEvent(new CustomEvent('sync-auth-failed'));
+        }
+        return null;
+      }
+      return await response.json();
+    } catch (err) {
+      console.warn(`Network error during API Request to ${url}:`, err);
+      return null;
+    }
+  },
+
+  async testConnection(serverUrl, apiKey) {
+    const cleanUrl = serverUrl.replace(/\/$/, '');
+    const url = `${cleanUrl}/api/ping`;
+    
+    try {
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'X-API-Key': apiKey
+        }
+      });
+      if (response.ok) {
+        const data = await response.json();
+        return { success: true, data };
+      }
+      return { success: false, error: `HTTP ${response.status}: ${response.statusText}` };
+    } catch (err) {
+      return { success: false, error: err.message || '网络连接失败' };
+    }
+  },
+
+  async sync(lastSyncAt, changes) {
+    return await this.request('POST', '/api/sync', { lastSyncAt, changes });
+  }
+};

@@ -1,0 +1,19 @@
+version: '3.8'
+
+services:
+  noteflow:
+    build: .
+    container_name: noteflow
+    restart: unless-stopped
+    ports:
+      - "3001:3001"
+    volumes:
+      - noteflow-data:/app/server/data
+    environment:
+      - PORT=3001
+      - API_KEY=change-me-to-a-secure-key
+      - DATA_DIR=/app/server/data
+      - NODE_ENV=production
+
+volumes:
+  noteflow-data:

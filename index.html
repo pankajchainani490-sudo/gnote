@@ -1,0 +1,469 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NoteFlow — 让灵感长成行动</title>
+  <!-- Inter Google Font -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <!-- Style Sheet -->
+  <link rel="stylesheet" href="style.css">
+  <!-- PWA Manifest & Service Worker -->
+  <link rel="manifest" href="/manifest.json">
+  <meta name="theme-color" content="#FFFFFF">
+  <link rel="apple-touch-icon" href="/icons/icon-192.png">
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sw.js')
+          .then(reg => console.log('Service Worker registered successfully:', reg.scope))
+          .catch(err => console.warn('Service Worker registration failed:', err));
+      });
+    }
+  </script>
+</head>
+<body>
+  <div id="app" class="app-container">
+    
+    <!-- Sidebar Navigation -->
+    <aside class="sidebar" id="main-sidebar">
+      <div class="sidebar-header">
+        <div class="brand">
+          <span class="brand-name">NF</span>
+        </div>
+      </div>
+      
+      <nav class="sidebar-nav">
+        <a href="#notes" class="nav-item active" data-view="notes" title="笔记">
+          <span class="nav-icon">N</span>
+        </a>
+        <a href="#tasks" class="nav-item" data-view="tasks" title="任务">
+          <span class="nav-icon">T</span>
+        </a>
+        <a href="#milestones" class="nav-item" data-view="milestones" title="里程碑">
+          <span class="nav-icon">M</span>
+        </a>
+        <a href="#insights" class="nav-item" data-view="insights" title="洞察">
+          <span class="nav-icon">I</span>
+        </a>
+      </nav>
+
+      <div class="sidebar-footer">
+        <button id="btn-quick-capture" class="btn btn-secondary btn-icon" title="快速记录想法">＋</button>
+        <button id="btn-dev-settings" class="btn btn-secondary btn-icon" title="开发者设置">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display: block;">
+            <circle cx="12" cy="12" r="3"></circle>
+            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+          </svg>
+        </button>
+      </div>
+    </aside>
+
+    <!-- Main Workspace -->
+    <main class="main-content">
+      
+      <!-- 1. NOTES VIEW -->
+      <section id="view-notes" class="view-panel">
+        <div class="notes-layout">
+          <!-- Note List Sidebar -->
+          <div class="notes-sidebar" id="notes-list-sidebar">
+            <div class="notes-sidebar-header">
+              <input type="text" id="search-notes" placeholder="搜索笔记或标签..." class="search-input">
+              <button id="btn-new-note" class="btn btn-primary btn-icon" title="新建笔记">＋</button>
+            </div>
+            <div class="notes-list" id="notes-list-container">
+              <!-- Rendered Dynamically -->
+            </div>
+
+            <!-- Edge handle for collapsing notes list sidebar -->
+            <div id="handle-toggle-notes" class="notes-edge-handle" title="折叠/展开列表">
+              <span class="handle-arrow">◀</span>
+            </div>
+          </div>
+          
+          <!-- Note Editor Container -->
+          <div class="notes-editor-container" id="editor-empty-state">
+            <div class="empty-state">
+              <span class="empty-icon-text">NoteFlow</span>
+              <h3>选择一篇笔记或创建新笔记</h3>
+              <p>开始记录你的想法，并直接在里面规划待办任务。</p>
+              <button id="btn-create-first-note" class="btn btn-primary">新建笔记</button>
+            </div>
+          </div>
+
+          <div class="notes-editor-container hidden" id="editor-active-state">
+            <div class="editor-header">
+              <div class="editor-title-row">
+                <input type="text" id="note-title" placeholder="无标题笔记" class="note-title-input">
+                <div class="editor-actions">
+                  <span id="save-status" class="save-status">已保存</span>
+                  <button id="btn-delete-note" class="btn btn-danger-text" title="删除笔记">删除</button>
+                </div>
+              </div>
+              <div class="note-tags-row">
+                <div class="tags-list" id="note-tags-list">
+                  <!-- Active tags -->
+                </div>
+                <input type="text" id="add-tag-input" placeholder="+ 添加标签" class="tag-input">
+              </div>
+            </div>
+            
+            <div class="editor-body-rich">
+              <div class="rich-editor-wrapper">
+                <div id="rich-editor" contenteditable="true" class="rich-editor-content" placeholder="在此处输入内容... 选中文本以进行格式排版。"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 2. TASKS VIEW -->
+      <section id="view-tasks" class="view-panel hidden">
+        <div class="tasks-layout">
+          <div class="tasks-header" style="justify-content: flex-end; margin-bottom: 12px;">
+            <div class="tasks-actions">
+              <select id="filter-milestone" class="select-input">
+                <option value="">所有里程碑</option>
+                <!-- Rendered Dynamically -->
+              </select>
+              <select id="filter-priority" class="select-input">
+                <option value="">所有优先级</option>
+                <option value="P0">P0 紧急重要</option>
+                <option value="P1">P1 重要</option>
+                <option value="P2">P2 中等</option>
+                <option value="P3">P3 低</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Today's Focus Widget -->
+          <div class="today-focus-card" id="today-focus-card">
+            <div class="today-header">
+              <h3>今日聚焦</h3>
+              <div style="display: flex; align-items: center; gap: 12px;">
+                <span class="today-date" id="today-date-text"></span>
+                <button id="btn-toggle-today" class="btn btn-secondary btn-icon-small" title="折叠内容">◀</button>
+              </div>
+            </div>
+            <div class="today-list" id="today-focus-list">
+              <!-- High-priority and overdue items go here -->
+            </div>
+          </div>
+
+          <!-- Kanban Board -->
+          <div class="kanban-board">
+            <div class="kanban-column" data-status="todo">
+              <div class="column-header">
+                <span class="column-dot dot-todo"></span>
+                <h3>待办</h3>
+                <span class="column-count" id="count-todo">0</span>
+              </div>
+              <div class="kanban-cards" id="cards-todo"></div>
+            </div>
+
+            <div class="kanban-column" data-status="doing">
+              <div class="column-header">
+                <span class="column-dot dot-doing"></span>
+                <h3>进行中</h3>
+                <span class="column-count" id="count-doing">0</span>
+              </div>
+              <div class="kanban-cards" id="cards-doing"></div>
+            </div>
+
+            <div class="kanban-column" data-status="done">
+              <div class="column-header">
+                <span class="column-dot dot-done"></span>
+                <h3>已完成</h3>
+                <span class="column-count" id="count-done">0</span>
+              </div>
+              <div class="kanban-cards" id="cards-done"></div>
+            </div>
+
+            <div class="kanban-column" data-status="abandoned">
+              <div class="column-header">
+                <span class="column-dot dot-abandoned"></span>
+                <h3>已放弃</h3>
+                <span class="column-count" id="count-abandoned">0</span>
+              </div>
+              <div class="kanban-cards" id="cards-abandoned"></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 3. MILESTONES VIEW -->
+      <section id="view-milestones" class="view-panel hidden">
+        <div class="milestones-layout">
+          <div class="view-header-row" style="justify-content: flex-end; margin-bottom: 12px;">
+            <button id="btn-new-milestone" class="btn btn-primary">新建里程碑</button>
+          </div>
+
+          <!-- Milestones Progress Timeline -->
+          <div class="milestones-grid" id="milestones-grid-container">
+            <!-- Rendered Dynamically -->
+          </div>
+
+          <!-- Simple Timeline / Gantt chart representation -->
+          <div class="gantt-section">
+            <div class="gantt-header-row" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+              <h3>里程碑时间线</h3>
+              <button id="btn-toggle-gantt" class="btn btn-secondary btn-icon-small" title="折叠内容">◀</button>
+            </div>
+            <div class="gantt-container" id="gantt-chart-container">
+              <!-- Rendered Dynamically -->
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 4. INSIGHTS VIEW -->
+      <section id="view-insights" class="view-panel hidden">
+        <div class="insights-layout">
+          <div class="view-header-row" style="justify-content: flex-end; margin-bottom: 12px;">
+            <button id="btn-generate-report" class="btn btn-secondary">生成复盘报告</button>
+          </div>
+
+          <!-- Metrics Row -->
+          <div class="metrics-row">
+            <div class="metric-card">
+              <span class="metric-label">已完成任务</span>
+              <span class="metric-value" id="insight-metric-done">0</span>
+              <span class="metric-desc">持续积累中</span>
+            </div>
+            <div class="metric-card">
+              <span class="metric-label">进行中任务</span>
+              <span class="metric-value" id="insight-metric-doing">0</span>
+              <span class="metric-desc">专注执行</span>
+            </div>
+            <div class="metric-card">
+              <span class="metric-label">记录笔记数</span>
+              <span class="metric-value" id="insight-metric-notes">0</span>
+              <span class="metric-desc">知识沉淀</span>
+            </div>
+            <div class="metric-card">
+              <span class="metric-label">里程碑达成率</span>
+              <span class="metric-value" id="insight-metric-ratio">0%</span>
+              <span class="metric-desc">目标指引</span>
+            </div>
+          </div>
+
+          <!-- Analytics Charts -->
+          <div class="insights-charts-grid">
+            <!-- Trend Line Chart -->
+            <div class="chart-card">
+              <h3>任务完成趋势 (7天)</h3>
+              <div class="chart-wrapper" id="trend-chart-wrapper">
+                <!-- Custom SVG Line Chart will be drawn here -->
+              </div>
+            </div>
+
+            <!-- Priority & Tag Distribution -->
+            <div class="chart-card">
+              <h3>任务优先级与标签分布</h3>
+              <div class="chart-wrapper" id="distribution-chart-wrapper">
+                <!-- Custom SVG Distribution Chart -->
+              </div>
+            </div>
+          </div>
+
+          <!-- Activity Heatmap (GitHub style) -->
+          <div class="chart-card heatmap-card">
+            <h3>个人成长热力图</h3>
+            <div class="heatmap-wrapper" id="heatmap-container">
+              <!-- Contribution-like graph in pure HTML/CSS -->
+            </div>
+          </div>
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+  <!-- --- MODALS & DIALOGS --- -->
+
+  <!-- Quick Capture Dialog -->
+  <div id="modal-quick-capture" class="modal-overlay hidden">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3>快速记录想法</h3>
+        <button class="modal-close btn-close-modal">×</button>
+      </div>
+      <div class="modal-body">
+        <input type="text" id="quick-capture-title" placeholder="给灵感起个名字（可选）" class="form-input">
+        <textarea id="quick-capture-content" placeholder="输入想法... 创建的任务会同步至任务大盘。" rows="4" class="form-textarea"></textarea>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary btn-close-modal">取消</button>
+        <button id="btn-save-quick-capture" class="btn btn-primary">保存</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Task Detail Editor Dialog -->
+  <div id="modal-task-detail" class="modal-overlay hidden">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3>编辑任务属性</h3>
+        <button class="modal-close btn-close-modal">×</button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="edit-task-id">
+        <div class="form-group">
+          <label for="edit-task-text">任务描述</label>
+          <input type="text" id="edit-task-text" class="form-input" required>
+        </div>
+        <div class="form-row">
+          <div class="form-group flex-1">
+            <label for="edit-task-priority">优先级</label>
+            <select id="edit-task-priority" class="select-input full-width">
+              <option value="P0">P0 - 紧急重要</option>
+              <option value="P1">P1 - 重要</option>
+              <option value="P2">P2 - 中等</option>
+              <option value="P3">P3 - 低</option>
+            </select>
+          </div>
+          <div class="form-group flex-1">
+            <label for="edit-task-status">状态</label>
+            <select id="edit-task-status" class="select-input full-width">
+              <option value="todo">待办</option>
+              <option value="doing">进行中</option>
+              <option value="done">已完成</option>
+              <option value="abandoned">已放弃</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group flex-1">
+            <label for="edit-task-duedate">截止日期</label>
+            <input type="date" id="edit-task-duedate" class="form-input full-width">
+          </div>
+          <div class="form-group flex-1">
+            <label for="edit-task-milestone">关联里程碑</label>
+            <select id="edit-task-milestone" class="select-input full-width">
+              <option value="">无里程碑</option>
+              <!-- Rendered Dynamically -->
+            </select>
+          </div>
+        </div>
+        <div class="form-group text-muted-small" id="task-source-note-link-container">
+          <!-- Links back to note -->
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button id="btn-delete-task" class="btn btn-danger-text mr-auto">删除任务</button>
+        <button class="btn btn-secondary btn-close-modal">取消</button>
+        <button id="btn-save-task-detail" class="btn btn-primary">保存修改</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Milestone Editor Dialog -->
+  <div id="modal-milestone" class="modal-overlay hidden">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3 id="milestone-modal-title">新建里程碑</h3>
+        <button class="modal-close btn-close-modal">×</button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="edit-milestone-id">
+        <div class="form-group">
+          <label for="edit-milestone-name">里程碑标题</label>
+          <input type="text" id="edit-milestone-name" placeholder="例如：v1.0 发版" class="form-input" required>
+        </div>
+        <div class="form-group">
+          <label for="edit-milestone-desc">目标描述</label>
+          <textarea id="edit-milestone-desc" placeholder="达成该节点所代表的具体成果或要求..." rows="3" class="form-textarea"></textarea>
+        </div>
+        <div class="form-row">
+          <div class="form-group flex-1">
+            <label for="edit-milestone-startdate">开始时间</label>
+            <input type="date" id="edit-milestone-startdate" class="form-input full-width">
+          </div>
+          <div class="form-group flex-1">
+            <label for="edit-milestone-duedate">截止日期</label>
+            <input type="date" id="edit-milestone-duedate" class="form-input full-width">
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button id="btn-delete-milestone" class="btn btn-danger-text mr-auto hidden">删除里程碑</button>
+        <button class="btn btn-secondary btn-close-modal">取消</button>
+        <button id="btn-save-milestone" class="btn btn-primary">保存</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Weekly/Monthly Report Dialog -->
+  <div id="modal-report" class="modal-overlay hidden">
+    <div class="modal-card wide-modal">
+      <div class="modal-header">
+        <h3>自动化复盘周报</h3>
+        <button class="modal-close btn-close-modal">×</button>
+      </div>
+      <div class="modal-body">
+        <p class="text-muted-small mb-2">系统已根据你过去 7 天的记录和打卡行为自动整理出复盘大纲：</p>
+        <textarea id="report-output-textarea" class="form-textarea code-font" rows="15" readonly></textarea>
+      </div>
+      <div class="modal-footer">
+        <button id="btn-copy-report" class="btn btn-secondary">复制内容</button>
+        <button id="btn-save-report-note" class="btn btn-primary">保存为新笔记</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Developer Settings Dialog -->
+  <div id="modal-dev-settings" class="modal-overlay hidden">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3>自托管同步设置</h3>
+        <button class="modal-close btn-close-modal">×</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group mb-3">
+          <label for="dev-server-url" class="form-label" style="display: block; font-size: 0.85rem; margin-bottom: 0.25rem; font-weight: 500;">服务器地址 (URL)</label>
+          <input type="url" id="dev-server-url" placeholder="http://localhost:3001" class="form-input" style="width: 100%; box-sizing: border-box;">
+          <small class="text-muted-small" style="display: block; font-size: 0.75rem; color: #8E8E93; margin-top: 0.25rem;">你的 NoteFlow 备份同步服务地址</small>
+        </div>
+        <div class="form-group mb-3">
+          <label for="dev-api-key" class="form-label" style="display: block; font-size: 0.85rem; margin-bottom: 0.25rem; font-weight: 500;">API 密钥 (API Key)</label>
+          <input type="password" id="dev-api-key" placeholder="输入自托管服务设定的 API Key" class="form-input" style="width: 100%; box-sizing: border-box;">
+        </div>
+        <div style="display: flex; align-items: center; gap: 0.5rem; margin-top: 1rem; font-size: 0.85rem;">
+          <span id="dev-status-indicator" style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background-color: #8E8E93;"></span>
+          <span id="dev-connection-status" style="color: #636366;">未配置</span>
+        </div>
+      </div>
+      <div class="modal-footer" style="display: flex; gap: 0.5rem; justify-content: flex-end;">
+        <button id="btn-test-connection" class="btn btn-secondary">测试连接</button>
+        <button id="btn-save-dev-settings" class="btn btn-primary">保存并同步</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Floating Selection Toolbar -->
+  <div id="floating-toolbar" class="floating-toolbar hidden">
+    <button class="toolbar-btn" data-cmd="bold" title="加粗"><b>B</b></button>
+    <button class="toolbar-btn" data-cmd="italic" title="斜体"><i>I</i></button>
+    <button class="toolbar-btn" data-cmd="underline" title="下划线"><u>U</u></button>
+    <button class="toolbar-btn" data-cmd="strikeThrough" title="删除线" style="text-decoration: line-through;">S</button>
+    <div class="toolbar-divider"></div>
+    <button class="toolbar-btn" data-cmd="fontSize" data-val="2" title="小字号" style="font-size: 0.75rem;">小</button>
+    <button class="toolbar-btn" data-cmd="fontSize" data-val="3" title="标准字号" style="font-size: 0.875rem;">中</button>
+    <button class="toolbar-btn" data-cmd="fontSize" data-val="5" title="大字号" style="font-size: 1.1rem; font-weight: bold;">大</button>
+    <button class="toolbar-btn" data-cmd="fontSize" data-val="6" title="特大字号" style="font-size: 1.3rem; font-weight: bold;">特</button>
+    <div class="toolbar-divider"></div>
+    <button class="toolbar-btn" id="btn-toolbar-todo" title="生成待办">待办</button>
+    <div class="toolbar-divider"></div>
+    <button class="toolbar-btn" data-cmd="justifyLeft" title="左对齐">左</button>
+    <button class="toolbar-btn" data-cmd="justifyCenter" title="居中">中</button>
+    <button class="toolbar-btn" data-cmd="justifyRight" title="右对齐">右</button>
+    <div class="toolbar-divider"></div>
+    <button class="toolbar-btn" data-cmd="insertUnorderedList" title="项目符号">列表</button>
+  </div>
+
+  <!-- Controller Code Entry -->
+  <script type="module" src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,47 @@
+{
+  "name": "noteflow",
+  "version": "1.0.0",
+  "description": "Minimalist self-hosted NoteFlow frontend",
+  "type": "module",
+  "main": "electron/main.js",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "electron:dev": "npm run build && electron .",
+    "mac:build": "npm run build && electron-builder --mac",
+    "android:add": "cap add android",
+    "android:sync": "npm run build && cap sync",
+    "android:open": "cap open android",
+    "android:build": "npm run android:sync && cd android && ./gradlew assembleDebug"
+  },
+  "devDependencies": {
+    "@capacitor/android": "^8.4.1",
+    "@capacitor/cli": "^8.4.1",
+    "electron": "^42.5.0",
+    "electron-builder": "^26.15.3",
+    "vite": "^5.2.11"
+  },
+  "build": {
+    "appId": "com.noteflow.app",
+    "productName": "NoteFlow",
+    "files": [
+      "dist/**/*",
+      "electron/**/*",
+      "package.json"
+    ],
+    "mac": {
+      "target": [
+        "dmg",
+        "zip"
+      ],
+      "icon": "public/icons/icon-512.png"
+    },
+    "directories": {
+      "output": "dist_electron"
+    }
+  },
+  "dependencies": {
+    "@capacitor/core": "^8.4.1"
+  }
+}

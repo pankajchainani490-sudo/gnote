@@ -1,0 +1,6 @@
+{
+  "appId": "com.noteflow.app",
+  "appName": "NoteFlow",
+  "webDir": "dist",
+  "bundledWebRuntime": false
+}
