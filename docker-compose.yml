@@ -6,7 +6,7 @@ services:
     container_name: noteflow
     restart: unless-stopped
     ports:
-      - "3001:3001"
+      - "3005:3001"
     volumes:
       - noteflow-data:/app/server/data
     environment:
