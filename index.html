@@ -115,6 +115,27 @@
               </div>
             </div>
             
+            <!-- Floating Selection Toolbar (Pinned on Mobile, Floating on Desktop) -->
+            <div id="floating-toolbar" class="floating-toolbar hidden">
+              <button class="toolbar-btn" data-cmd="bold" title="加粗"><b>B</b></button>
+              <button class="toolbar-btn" data-cmd="italic" title="斜体"><i>I</i></button>
+              <button class="toolbar-btn" data-cmd="underline" title="下划线"><u>U</u></button>
+              <button class="toolbar-btn" data-cmd="strikeThrough" title="删除线" style="text-decoration: line-through;">S</button>
+              <div class="toolbar-divider"></div>
+              <button class="toolbar-btn" data-cmd="fontSize" data-val="2" title="小字号" style="font-size: 0.75rem;">小</button>
+              <button class="toolbar-btn" data-cmd="fontSize" data-val="3" title="标准字号" style="font-size: 0.875rem;">中</button>
+              <button class="toolbar-btn" data-cmd="fontSize" data-val="5" title="大字号" style="font-size: 1.1rem; font-weight: bold;">大</button>
+              <button class="toolbar-btn" data-cmd="fontSize" data-val="6" title="特大字号" style="font-size: 1.3rem; font-weight: bold;">特</button>
+              <div class="toolbar-divider"></div>
+              <button class="toolbar-btn" id="btn-toolbar-todo" title="生成待办">待办</button>
+              <div class="toolbar-divider"></div>
+              <button class="toolbar-btn" data-cmd="justifyLeft" title="左对齐">左</button>
+              <button class="toolbar-btn" data-cmd="justifyCenter" title="居中">中</button>
+              <button class="toolbar-btn" data-cmd="justifyRight" title="右对齐">右</button>
+              <div class="toolbar-divider"></div>
+              <button class="toolbar-btn" data-cmd="insertUnorderedList" title="项目符号">列表</button>
+            </div>
+            
             <div class="editor-body-rich">
               <div class="rich-editor-wrapper">
                 <div id="rich-editor" contenteditable="true" class="rich-editor-content" placeholder="在此处输入内容... 选中文本以进行格式排版。"></div>
@@ -455,26 +476,7 @@
     </div>
   </div>
 
-  <!-- Floating Selection Toolbar -->
-  <div id="floating-toolbar" class="floating-toolbar hidden">
-    <button class="toolbar-btn" data-cmd="bold" title="加粗"><b>B</b></button>
-    <button class="toolbar-btn" data-cmd="italic" title="斜体"><i>I</i></button>
-    <button class="toolbar-btn" data-cmd="underline" title="下划线"><u>U</u></button>
-    <button class="toolbar-btn" data-cmd="strikeThrough" title="删除线" style="text-decoration: line-through;">S</button>
-    <div class="toolbar-divider"></div>
-    <button class="toolbar-btn" data-cmd="fontSize" data-val="2" title="小字号" style="font-size: 0.75rem;">小</button>
-    <button class="toolbar-btn" data-cmd="fontSize" data-val="3" title="标准字号" style="font-size: 0.875rem;">中</button>
-    <button class="toolbar-btn" data-cmd="fontSize" data-val="5" title="大字号" style="font-size: 1.1rem; font-weight: bold;">大</button>
-    <button class="toolbar-btn" data-cmd="fontSize" data-val="6" title="特大字号" style="font-size: 1.3rem; font-weight: bold;">特</button>
-    <div class="toolbar-divider"></div>
-    <button class="toolbar-btn" id="btn-toolbar-todo" title="生成待办">待办</button>
-    <div class="toolbar-divider"></div>
-    <button class="toolbar-btn" data-cmd="justifyLeft" title="左对齐">左</button>
-    <button class="toolbar-btn" data-cmd="justifyCenter" title="居中">中</button>
-    <button class="toolbar-btn" data-cmd="justifyRight" title="右对齐">右</button>
-    <div class="toolbar-divider"></div>
-    <button class="toolbar-btn" data-cmd="insertUnorderedList" title="项目符号">列表</button>
-  </div>
+
 
   <!-- Controller Code Entry -->
   <script type="module" src="app.js"></script>

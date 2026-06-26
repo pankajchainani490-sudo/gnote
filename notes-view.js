@@ -116,13 +116,38 @@ export const NotesView = {
       }, 1000);
     });
 
-    // Tag adding
+    // Tag adding (improved for Android/mobile keyboards and compositions)
     const tagInput = document.getElementById('add-tag-input');
-    tagInput.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter' && tagInput.value.trim()) {
-        this.addTag(tagInput.value.trim());
+    
+    const tryAddTagFromInput = () => {
+      const val = tagInput.value.trim();
+      if (val) {
+        // Remove trailing commas/spaces/semicolons that might have triggered this
+        const cleaned = val.replace(/[,;，；\s]+$/, '');
+        if (cleaned) {
+          this.addTag(cleaned);
+        }
         tagInput.value = '';
       }
+    };
+
+    tagInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.keyCode === 13) {
+        e.preventDefault();
+        tryAddTagFromInput();
+      }
+    });
+
+    tagInput.addEventListener('input', (e) => {
+      const val = tagInput.value;
+      // If user typed a comma, space, semicolon, or Chinese equivalent, trigger tag addition
+      if (/[ ,;，；]/.test(val)) {
+        tryAddTagFromInput();
+      }
+    });
+
+    tagInput.addEventListener('blur', () => {
+      tryAddTagFromInput();
     });
 
     // --- BIND COLLAPSIBLE EDGE HANDLERS ---
