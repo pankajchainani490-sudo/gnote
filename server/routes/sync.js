@@ -5,7 +5,7 @@ const router = express.Router();
 
 router.post('/', (req, res) => {
   try {
-    const { clientRevision, changes } = req.body;
+    const { clientRevision, lastSyncAt, changes } = req.body;
     const baseRevision = typeof clientRevision === 'number' ? clientRevision : 0;
 
     // 1. Apply client changes to server
@@ -69,12 +69,24 @@ router.post('/', (req, res) => {
       }
     }
 
-    // 2. Return all changes since client's last known revision
+    // 2. Return all changes since client's last known revision or lastSyncAt timestamp
     const serverRevision = db.getCurrentRevision();
-    const serverChanges = db.getChangesSince(baseRevision);
+    let serverChanges;
+
+    if (typeof clientRevision === 'number') {
+      serverChanges = db.getChangesSince(baseRevision);
+    } else {
+      const lastSyncDate = lastSyncAt ? new Date(lastSyncAt) : new Date(0);
+      const notes = db.getAll('notes').filter(item => new Date(item.updatedAt || item.createdAt) > lastSyncDate);
+      const tasks = db.getAll('tasks').filter(item => new Date(item.updatedAt || item.createdAt) > lastSyncDate);
+      const milestones = db.getAll('milestones').filter(item => new Date(item.updatedAt || item.createdAt || 0) > lastSyncDate);
+      const deleted = db.getAll('deleted_records').filter(item => new Date(item.deletedAt) > lastSyncDate);
+      serverChanges = { notes, tasks, milestones, deleted };
+    }
 
     res.json({
       serverRevision,
+      syncAt: new Date().toISOString(),
       changes: serverChanges
     });
   } catch (err) {

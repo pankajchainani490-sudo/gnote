@@ -71,6 +71,7 @@ export const DevSettings = {
       } else {
         SyncEngine.stop();
         localStorage.removeItem('noteflow_server_revision');
+        localStorage.removeItem('noteflow_last_sync_at');
         localStorage.removeItem('noteflow_changelog');
         this.updateStatusDisplay();
       }
@@ -119,8 +120,12 @@ export const DevSettings = {
   updateStatusDisplay() {
     if (apiClient.isConfigured()) {
       const rev = localStorage.getItem('noteflow_server_revision');
+      const lastSync = localStorage.getItem('noteflow_last_sync_at');
       if (rev && parseInt(rev, 10) > 0) {
         this.setStatus('success', `已连接 (服务端版本: r${rev})`);
+      } else if (lastSync) {
+        const time = new Date(lastSync).toLocaleTimeString();
+        this.setStatus('success', `已连接 (上次同步: ${time})`);
       } else {
         this.setStatus('success', '已配置, 等待首次同步');
       }

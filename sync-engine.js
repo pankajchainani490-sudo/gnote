@@ -89,7 +89,7 @@ export const SyncEngine = {
         data: action === 'upsert' ? dataOrId : null,
         timestamp: now,
         seq: changelogSeq,
-        isNewOffline: action === 'upsert' && !this.getServerRevision()
+        isNewOffline: action === 'upsert' && !this.getServerRevision() && !localStorage.getItem('noteflow_last_sync_at')
       });
     }
 
@@ -155,11 +155,13 @@ export const SyncEngine = {
 
     try {
       let clientRevision = this.getServerRevision();
+      let lastSyncAt = localStorage.getItem('noteflow_last_sync_at') || '';
 
-      // First-time sync: seed all local data
-      if (!clientRevision) {
+      // First-time sync: seed all local data only if we have NEVER synced before
+      if (!clientRevision && !lastSyncAt) {
         this.seedLocalDataAsChanges();
         clientRevision = 0;
+        lastSyncAt = '1970-01-01T00:00:00.000Z';
       }
 
       // Snapshot the changelog and record the max seq in the snapshot
@@ -181,13 +183,23 @@ export const SyncEngine = {
         }
       });
 
-      console.log(`Sync: pushing ${changelogSnapshot.length} changes, clientRevision=${clientRevision}`);
-      const response = await apiClient.sync(clientRevision, changes);
+      console.log(`Sync: pushing ${changelogSnapshot.length} changes, clientRevision=${clientRevision}, lastSyncAt=${lastSyncAt}`);
+      const response = await apiClient.sync(clientRevision, lastSyncAt, changes);
 
-      if (response && typeof response.serverRevision === 'number') {
+      if (response && (typeof response.serverRevision === 'number' || typeof response.syncAt === 'string')) {
         // Apply server changes to local storage
         this.applyServerChanges(response.changes);
-        this.setServerRevision(response.serverRevision);
+
+        if (typeof response.serverRevision === 'number') {
+          this.setServerRevision(response.serverRevision);
+          if (response.syncAt) {
+            localStorage.setItem('noteflow_last_sync_at', response.syncAt);
+          }
+        } else {
+          // Old server fallback: save syncAt and remove server revision
+          localStorage.setItem('noteflow_last_sync_at', response.syncAt);
+          localStorage.removeItem('noteflow_server_revision');
+        }
 
         // Only remove changelog entries with seq <= snapshotMaxSeq
         // This preserves any changes that arrived DURING the network request
@@ -195,7 +207,7 @@ export const SyncEngine = {
         const remainingChangelog = currentChangelog.filter(e => (e.seq || 0) > snapshotMaxSeq);
         this.saveChangelog(remainingChangelog);
 
-        console.log(`Sync complete. serverRevision=${response.serverRevision}, remaining changelog=${remainingChangelog.length}`);
+        console.log(`Sync complete. remaining changelog=${remainingChangelog.length}`);
         window.dispatchEvent(new CustomEvent('sync-status-changed', { detail: 'success' }));
 
         // Re-render all views

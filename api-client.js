@@ -129,8 +129,8 @@ export const apiClient = {
     }
   },
 
-  async sync(clientRevision, changes) {
-    return await this.request('POST', '/api/sync', { clientRevision, changes });
+  async sync(clientRevision, lastSyncAt, changes) {
+    return await this.request('POST', '/api/sync', { clientRevision, lastSyncAt, changes });
   }
 };
 
