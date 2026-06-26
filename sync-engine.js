@@ -1,80 +1,113 @@
-// sync-engine.js - Background synchronization engine for NoteFlow
+// sync-engine.js - Event-driven push sync engine for NoteFlow
+// Architecture: Write-after-push with server revision numbers
 
 import { apiClient } from './api-client.js';
 import { db } from './db.js';
 
-let syncIntervalId = null;
 let isSyncing = false;
+let pendingSync = false; // True if new changes arrived during an active sync
+let heartbeatIntervalId = null;
+let debounceTimerId = null;
+let changelogSeq = 0; // Auto-incrementing sequence number for changelog entries
+
+const DEBOUNCE_MS = 1000;   // Push changes 1 second after last write
+const HEARTBEAT_MS = 60000; // Fallback pull every 60 seconds
 
 export const SyncEngine = {
   start() {
-    if (syncIntervalId) return;
-    
+    if (heartbeatIntervalId) return;
+
+    // Restore seq counter from stored changelog
+    const existing = this.getChangelog();
+    if (existing.length > 0) {
+      changelogSeq = Math.max(...existing.map(e => e.seq || 0));
+    }
+
     // Initial sync on startup
     this.sync();
-    
-    // Set up 30-second interval
-    syncIntervalId = setInterval(() => {
+
+    // Heartbeat: pull remote changes periodically as fallback
+    heartbeatIntervalId = setInterval(() => {
       this.sync();
-    }, 30000);
-    
-    console.log('SyncEngine started.');
+    }, HEARTBEAT_MS);
+
+    console.log('SyncEngine started (event-driven push + 60s heartbeat).');
   },
 
   stop() {
-    if (syncIntervalId) {
-      clearInterval(syncIntervalId);
-      syncIntervalId = null;
-      console.log('SyncEngine stopped.');
+    if (heartbeatIntervalId) {
+      clearInterval(heartbeatIntervalId);
+      heartbeatIntervalId = null;
     }
+    if (debounceTimerId) {
+      clearTimeout(debounceTimerId);
+      debounceTimerId = null;
+    }
+    console.log('SyncEngine stopped.');
   },
 
-  // Record a local write/delete operation in the changelog queue
+  // Record a local write/delete and trigger debounced push
   recordChange(type, action, dataOrId) {
     const changelog = this.getChangelog();
     const id = action === 'delete' ? dataOrId : dataOrId.id;
     const now = new Date().toISOString();
+    changelogSeq++;
 
     const existingIndex = changelog.findIndex(entry => entry.id === id && entry.type === type);
-    
+
     if (existingIndex >= 0) {
       const existing = changelog[existingIndex];
-      
+
       if (action === 'delete') {
         if (existing.action === 'upsert' && existing.isNewOffline) {
-          // Optimization: If created offline and deleted offline, never sync to server
+          // Created and deleted offline — never needs to sync
           changelog.splice(existingIndex, 1);
         } else {
-          // Replace upsert with delete
           changelog[existingIndex] = {
             id,
             type,
             action: 'delete',
-            timestamp: now
+            timestamp: now,
+            seq: changelogSeq
           };
         }
       } else {
-        // action === 'upsert'
+        // Upsert: update existing entry with new data and new seq
         changelog[existingIndex] = {
           ...existing,
           action: 'upsert',
           data: dataOrId,
-          timestamp: now
+          timestamp: now,
+          seq: changelogSeq
         };
       }
     } else {
-      // Add new entry
       changelog.push({
         id,
         type,
         action,
         data: action === 'upsert' ? dataOrId : null,
         timestamp: now,
-        isNewOffline: action === 'upsert' && !this.getLastSyncAt() // Track if created before first sync
+        seq: changelogSeq,
+        isNewOffline: action === 'upsert' && !this.getServerRevision()
       });
     }
 
     this.saveChangelog(changelog);
+
+    // Trigger debounced push — immediate responsiveness
+    this.debouncedSync();
+  },
+
+  // Debounce: wait 1 second after last change before syncing
+  debouncedSync() {
+    if (debounceTimerId) {
+      clearTimeout(debounceTimerId);
+    }
+    debounceTimerId = setTimeout(() => {
+      debounceTimerId = null;
+      this.sync();
+    }, DEBOUNCE_MS);
   },
 
   getChangelog() {
@@ -89,17 +122,18 @@ export const SyncEngine = {
     localStorage.setItem('noteflow_changelog', JSON.stringify(changelog));
   },
 
-  getLastSyncAt() {
-    return localStorage.getItem('noteflow_last_sync_at') || '';
+  getServerRevision() {
+    const val = localStorage.getItem('noteflow_server_revision');
+    return val ? parseInt(val, 10) : 0;
   },
 
-  setLastSyncAt(timestamp) {
-    localStorage.setItem('noteflow_last_sync_at', timestamp);
+  setServerRevision(revision) {
+    localStorage.setItem('noteflow_server_revision', String(revision));
   },
 
   // Seed local data as offline changes on first server connection
   seedLocalDataAsChanges() {
-    console.log('Seeding existing local data to changelog for initial sync migration...');
+    console.log('Seeding existing local data to changelog for initial sync...');
     const notes = db.getNotes() || [];
     const tasks = db.getTasks() || [];
     const milestones = db.getMilestones() || [];
@@ -110,30 +144,32 @@ export const SyncEngine = {
   },
 
   async sync() {
-    if (isSyncing || !apiClient.isConfigured()) return;
+    if (isSyncing) {
+      // Mark that a re-sync is needed after current one finishes
+      pendingSync = true;
+      return;
+    }
     isSyncing = true;
-    
-    // Set visual indicator on settings modal or dispatch status event
+
     window.dispatchEvent(new CustomEvent('sync-status-changed', { detail: 'syncing' }));
 
     try {
-      let lastSyncAt = this.getLastSyncAt();
-      
-      // If we've never synced before, seed existing local storage data to the server
-      if (!lastSyncAt) {
+      let clientRevision = this.getServerRevision();
+
+      // First-time sync: seed all local data
+      if (!clientRevision) {
         this.seedLocalDataAsChanges();
-        lastSyncAt = '1970-01-01T00:00:00.000Z'; // Sync everything
+        clientRevision = 0;
       }
 
+      // Snapshot the changelog and record the max seq in the snapshot
       const changelogSnapshot = this.getChangelog();
-      
-      // Format changes payload for server /api/sync endpoint
-      const changes = {
-        notes: [],
-        tasks: [],
-        milestones: []
-      };
+      const snapshotMaxSeq = changelogSnapshot.length > 0
+        ? Math.max(...changelogSnapshot.map(e => e.seq || 0))
+        : 0;
 
+      // Build changes payload
+      const changes = { notes: [], tasks: [], milestones: [] };
       changelogSnapshot.forEach(entry => {
         const list = changes[entry.type];
         if (list) {
@@ -145,26 +181,27 @@ export const SyncEngine = {
         }
       });
 
-      console.log(`Starting sync. Sending ${changelogSnapshot.length} local changes. Last synced at: ${lastSyncAt}`);
-      const response = await apiClient.sync(lastSyncAt, changes);
+      console.log(`Sync: pushing ${changelogSnapshot.length} changes, clientRevision=${clientRevision}`);
+      const response = await apiClient.sync(clientRevision, changes);
 
-      if (response && response.changes) {
+      if (response && typeof response.serverRevision === 'number') {
+        // Apply server changes to local storage
         this.applyServerChanges(response.changes);
-        this.setLastSyncAt(response.syncAt);
-        
-        // Remove processed entries from local changelog
+        this.setServerRevision(response.serverRevision);
+
+        // Only remove changelog entries with seq <= snapshotMaxSeq
+        // This preserves any changes that arrived DURING the network request
         const currentChangelog = this.getChangelog();
-        const snapshotIds = new Set(changelogSnapshot.map(e => `${e.type}_${e.id}`));
-        const remainingChangelog = currentChangelog.filter(e => !snapshotIds.has(`${e.type}_${e.id}`));
+        const remainingChangelog = currentChangelog.filter(e => (e.seq || 0) > snapshotMaxSeq);
         this.saveChangelog(remainingChangelog);
 
-        console.log(`Sync completed successfully. Server sync time: ${response.syncAt}`);
+        console.log(`Sync complete. serverRevision=${response.serverRevision}, remaining changelog=${remainingChangelog.length}`);
         window.dispatchEvent(new CustomEvent('sync-status-changed', { detail: 'success' }));
-        
-        // Dispatch global data update to re-render all active UI views
+
+        // Re-render all views
         window.dispatchEvent(new Event('data-updated'));
       } else {
-        console.warn('Sync failed: No response received from server.');
+        console.warn('Sync failed: invalid response from server.');
         window.dispatchEvent(new CustomEvent('sync-status-changed', { detail: 'error' }));
       }
     } catch (err) {
@@ -172,38 +209,44 @@ export const SyncEngine = {
       window.dispatchEvent(new CustomEvent('sync-status-changed', { detail: 'error' }));
     } finally {
       isSyncing = false;
+
+      // If new changes arrived during sync, immediately trigger another sync
+      if (pendingSync) {
+        pendingSync = false;
+        this.debouncedSync();
+      }
     }
   },
 
   applyServerChanges(serverChanges) {
+    if (!serverChanges) return;
+
     let localNotes = db.getNotes() || [];
     let localTasks = db.getTasks() || [];
     let localMilestones = db.getMilestones() || [];
     let dataChanged = false;
 
-    // Helper to merge items using Last-Write-Wins based on updatedAt
+    // Helper: merge a server item into a local list using LWW
     const mergeItem = (localList, serverItem, type) => {
       const idx = localList.findIndex(item => item.id === serverItem.id);
-      
-      const serverUpdatedAt = serverItem.updatedAt || serverItem.createdAt || new Date().toISOString();
-      
+      const serverTs = serverItem.updatedAt || serverItem.createdAt || new Date().toISOString();
+
       if (idx >= 0) {
         const localItem = localList[idx];
-        const localUpdatedAt = localItem.updatedAt || localItem.createdAt || '1970-01-01T00:00:00.000Z';
-        
-        if (new Date(serverUpdatedAt) > new Date(localUpdatedAt)) {
+        const localTs = localItem.updatedAt || localItem.createdAt || '1970-01-01T00:00:00.000Z';
+
+        // Server wins if its timestamp is strictly newer
+        if (new Date(serverTs) > new Date(localTs)) {
           localList[idx] = { ...localItem, ...serverItem };
           dataChanged = true;
-          console.log(`Merged server update for ${type} ${serverItem.id}`);
         }
       } else {
         localList.push(serverItem);
         dataChanged = true;
-        console.log(`Added server item for ${type} ${serverItem.id}`);
       }
     };
 
-    // 1. Process server upserts
+    // Process upserts
     if (Array.isArray(serverChanges.notes)) {
       serverChanges.notes.forEach(note => mergeItem(localNotes, note, 'note'));
     }
@@ -211,27 +254,25 @@ export const SyncEngine = {
       serverChanges.tasks.forEach(task => mergeItem(localTasks, task, 'task'));
     }
     if (Array.isArray(serverChanges.milestones)) {
-      serverChanges.milestones.forEach(milestone => mergeItem(localMilestones, milestone, 'milestone'));
+      serverChanges.milestones.forEach(ms => mergeItem(localMilestones, ms, 'milestone'));
     }
 
-    // 2. Process server deletions
+    // Process deletions
     if (Array.isArray(serverChanges.deleted)) {
       serverChanges.deleted.forEach(del => {
         if (del.type === 'note') {
-          const initialLen = localNotes.length;
+          const len = localNotes.length;
           localNotes = localNotes.filter(n => n.id !== del.id);
-          // Cascadingly remove tasks associated with deleted notes
           localTasks = localTasks.filter(t => t.noteId !== del.id);
-          if (localNotes.length !== initialLen) dataChanged = true;
+          if (localNotes.length !== len) dataChanged = true;
         } else if (del.type === 'task') {
-          const initialLen = localTasks.length;
+          const len = localTasks.length;
           localTasks = localTasks.filter(t => t.id !== del.id);
-          if (localTasks.length !== initialLen) dataChanged = true;
+          if (localTasks.length !== len) dataChanged = true;
         } else if (del.type === 'milestone') {
-          const initialLen = localMilestones.length;
+          const len = localMilestones.length;
           localMilestones = localMilestones.filter(m => m.id !== del.id);
-          if (localMilestones.length !== initialLen) dataChanged = true;
-          // Unlink tasks associated with deleted milestones
+          if (localMilestones.length !== len) dataChanged = true;
           localTasks = localTasks.map(t => {
             if (t.milestoneId === del.id) {
               dataChanged = true;
@@ -243,7 +284,6 @@ export const SyncEngine = {
       });
     }
 
-    // Save updated arrays back to localStorage (uses the replaceAll bypass method we will add)
     if (dataChanged) {
       db.replaceAll(localNotes, localTasks, localMilestones);
     }

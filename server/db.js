@@ -10,7 +10,37 @@ if (!fs.existsSync(dataDir)) {
 }
 
 const getFilePath = (table) => path.join(dataDir, `${table}.json`);
+const metaFilePath = path.join(dataDir, 'meta.json');
 
+// --- Revision Counter ---
+const loadMeta = () => {
+  if (!fs.existsSync(metaFilePath)) {
+    return { revision: 0 };
+  }
+  try {
+    return JSON.parse(fs.readFileSync(metaFilePath, 'utf8'));
+  } catch (err) {
+    return { revision: 0 };
+  }
+};
+
+const saveMeta = (meta) => {
+  fs.writeFileSync(metaFilePath, JSON.stringify(meta, null, 2), 'utf8');
+};
+
+let meta = loadMeta();
+
+const nextRevision = () => {
+  meta.revision++;
+  saveMeta(meta);
+  return meta.revision;
+};
+
+const getCurrentRevision = () => {
+  return meta.revision;
+};
+
+// --- Table Read/Write ---
 const readTable = (table) => {
   const filePath = getFilePath(table);
   if (!fs.existsSync(filePath)) {
@@ -39,16 +69,21 @@ export const db = {
     return readTable(table).find(item => item.id === id);
   },
   
+  getCurrentRevision() {
+    return getCurrentRevision();
+  },
+
   insertOrReplace(table, item) {
     const items = readTable(table);
+    const rev = nextRevision();
     const index = items.findIndex(x => x.id === item.id);
     if (index >= 0) {
-      items[index] = { ...items[index], ...item };
+      items[index] = { ...items[index], ...item, _rev: rev };
     } else {
-      items.push(item);
+      items.push({ ...item, _rev: rev });
     }
     writeTable(table, items);
-    return item;
+    return { ...item, _rev: rev };
   },
   
   delete(table, id) {
@@ -59,16 +94,18 @@ export const db = {
     
     const deletedCount = initialLength - items.length;
     if (deletedCount > 0 && table !== 'deleted_records') {
-      // Record deletion for syncing clients
+      // Record deletion for syncing clients, with revision
       const typeMap = {
         'notes': 'note',
         'tasks': 'task',
         'milestones': 'milestone'
       };
+      const rev = nextRevision();
       this.insertOrReplace('deleted_records', {
         id,
         type: typeMap[table] || table,
-        deletedAt: new Date().toISOString()
+        deletedAt: new Date().toISOString(),
+        _rev: rev
       });
     }
     return deletedCount;
@@ -88,12 +125,13 @@ export const db = {
         'tasks': 'task',
         'milestones': 'milestone'
       };
-      const deletedAt = new Date().toISOString();
       itemsToDelete.forEach(item => {
+        const rev = nextRevision();
         this.insertOrReplace('deleted_records', {
           id: item.id,
           type: typeMap[table] || table,
-          deletedAt
+          deletedAt: new Date().toISOString(),
+          _rev: rev
         });
       });
     }
@@ -106,6 +144,7 @@ export const db = {
     items.forEach(item => {
       if (predicate(item)) {
         updater(item);
+        item._rev = nextRevision();
         count++;
       }
     });
@@ -113,6 +152,15 @@ export const db = {
       writeTable(table, items);
     }
     return count;
+  },
+
+  // Return all records with _rev > sinceRevision across all tables
+  getChangesSince(sinceRevision) {
+    const notes = readTable('notes').filter(item => (item._rev || 0) > sinceRevision);
+    const tasks = readTable('tasks').filter(item => (item._rev || 0) > sinceRevision);
+    const milestones = readTable('milestones').filter(item => (item._rev || 0) > sinceRevision);
+    const deleted = readTable('deleted_records').filter(item => (item._rev || 0) > sinceRevision);
+    return { notes, tasks, milestones, deleted };
   }
 };
 
