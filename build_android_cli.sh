@@ -3,17 +3,26 @@
 
 echo "=== NoteFlow Android CLI Builder ==="
 
-# 1. Determine Homebrew SDK Path based on CPU architecture (Intel vs Apple Silicon)
-ARCH=$(uname -m)
-if [ "$ARCH" = "arm64" ]; then
-  BREW_SDK_PATH="/opt/homebrew/share/android-sdk"
-else
-  BREW_SDK_PATH="/usr/local/share/android-sdk"
-fi
+# 1. Determine Homebrew SDK Path based on directory existence
+BREW_SDK_PATH=""
+POSSIBLE_PATHS=(
+  "/opt/homebrew/share/android-commandlinetools"
+  "/opt/homebrew/share/android-sdk"
+  "/usr/local/share/android-commandlinetools"
+  "/usr/local/share/android-sdk"
+  "$HOME/Library/Android/sdk"
+)
 
-# 2. Check if Android SDK CLI tools are installed
-if [ ! -d "$BREW_SDK_PATH" ]; then
-  echo "Android SDK not found at $BREW_SDK_PATH."
+for p in "${POSSIBLE_PATHS[@]}"; do
+  if [ -d "$p" ]; then
+    BREW_SDK_PATH="$p"
+    break
+  fi
+done
+
+# 2. Check if Android SDK CLI tools are found
+if [ -z "$BREW_SDK_PATH" ]; then
+  echo "Android SDK not found."
   echo "To build without Android Studio, please install the Android CLI Tools via Homebrew:"
   echo "  brew install --cask android-commandlinetools"
   echo ""
