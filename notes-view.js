@@ -107,13 +107,27 @@ export const NotesView = {
       }
     });
 
-    // Save on title changes
-    document.getElementById('note-title').addEventListener('input', () => {
+    // Save on title changes & auto-clear default "无标题" or "无标题笔记"
+    const titleInput = document.getElementById('note-title');
+    titleInput.addEventListener('input', () => {
       this.showSaveStatus('修改中...');
       clearTimeout(saveTimeout);
       saveTimeout = setTimeout(() => {
         this.saveCurrentNote();
       }, 1000);
+    });
+    titleInput.addEventListener('focus', () => {
+      const val = titleInput.value.trim();
+      if (val === '无标题' || val === '无标题笔记') {
+        titleInput.value = '';
+      }
+    });
+    titleInput.addEventListener('blur', () => {
+      const val = titleInput.value.trim();
+      if (!val) {
+        titleInput.value = '无标题笔记';
+        this.saveCurrentNote();
+      }
     });
 
     // Tag adding (improved for Android/mobile keyboards and compositions)
@@ -198,6 +212,113 @@ export const NotesView = {
         }, 300);
       });
     }
+
+    // Handle Enter key inside tasks to support custom newline / break todo
+    editor.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        const selection = window.getSelection();
+        if (selection.rangeCount === 0) return;
+        
+        const range = selection.getRangeAt(0);
+        let node = range.commonAncestorContainer;
+        let taskLine = null;
+        
+        while (node && node !== editor) {
+          if (node.nodeType === Node.ELEMENT_NODE && node.classList.contains('editor-task-line')) {
+            taskLine = node;
+            break;
+          }
+          node = node.parentNode;
+        }
+        
+        if (taskLine) {
+          e.preventDefault();
+          const textSpan = taskLine.querySelector('.editor-task-text');
+          const text = textSpan ? textSpan.innerText.trim() : '';
+          
+          if (!text) {
+            // Convert empty task line back to regular paragraph
+            const p = document.createElement('p');
+            p.innerHTML = '<br>';
+            const taskId = taskLine.dataset.id;
+            if (taskId) {
+              currentDb.deleteTask(taskId);
+            }
+            taskLine.parentNode.replaceChild(p, taskLine);
+            
+            // Set caret
+            const newRange = document.createRange();
+            newRange.setStart(p, 0);
+            newRange.collapse(true);
+            selection.removeAllRanges();
+            selection.addRange(newRange);
+            
+            this.saveCurrentNote();
+          } else {
+            // Create a new task line below
+            const newId = 't_' + Math.random().toString(36).substr(2, 5) + '_' + Date.now().toString(36).substr(-4);
+            const newLine = document.createElement('div');
+            newLine.className = 'editor-task-line';
+            newLine.dataset.id = newId;
+            newLine.innerHTML = `
+              <input type="checkbox" class="editor-task-checkbox" data-id="${newId}">
+              <span class="editor-task-text" data-id="${newId}"><br></span>
+            `;
+            
+            taskLine.parentNode.insertBefore(newLine, taskLine.nextSibling);
+            
+            // Focus caret in the new task span
+            const newTextSpan = newLine.querySelector('.editor-task-text');
+            const newRange = document.createRange();
+            newRange.setStart(newTextSpan, 0);
+            newRange.collapse(true);
+            selection.removeAllRanges();
+            selection.addRange(newRange);
+            
+            this.saveCurrentNote();
+          }
+        }
+      }
+    });
+
+    // Make blank spaces clickable/selectable inside the editor sheet
+    editor.addEventListener('click', (e) => {
+      if (e.target === editor) {
+        editor.focus();
+        const selection = window.getSelection();
+        const range = document.createRange();
+        range.selectNodeContents(editor);
+        range.collapse(false);
+        selection.removeAllRanges();
+        selection.addRange(range);
+      }
+    });
+
+    // Make blank spaces clickable/selectable in the editor wrapper too
+    if (editorWrapper) {
+      editorWrapper.addEventListener('click', (e) => {
+        if (e.target === editorWrapper) {
+          editor.focus();
+          const selection = window.getSelection();
+          const range = document.createRange();
+          range.selectNodeContents(editor);
+          range.collapse(false);
+          selection.removeAllRanges();
+          selection.addRange(range);
+        }
+      });
+    }
+
+    // Refresh note views on data update (from Kanban or server sync)
+    window.addEventListener('data-updated', () => {
+      // Reload active note only if the editor is not currently focused
+      if (activeNoteId && document.activeElement !== document.getElementById('rich-editor')) {
+        this.loadNote(activeNoteId);
+      } else {
+        const searchInput = document.getElementById('search-notes');
+        this.renderList(searchInput ? searchInput.value : '');
+      }
+    });
 
     this.renderList();
   },
@@ -349,36 +470,40 @@ export const NotesView = {
 
   saveCurrentNote() {
     if (!activeNoteId) return;
-    const title = document.getElementById('note-title').value.trim() || '无标题笔记';
     
-    let content = document.getElementById('rich-editor').innerHTML;
+    // Synchronize task IDs on live DOM elements BEFORE reading innerHTML
+    const editor = document.getElementById('rich-editor');
+    const taskLines = editor.querySelectorAll('.editor-task-line');
+    taskLines.forEach(line => {
+      let id = line.getAttribute('data-id');
+      if (!id) {
+        id = 't_' + Math.random().toString(36).substr(2, 5) + '_' + Date.now().toString(36).substr(-4);
+        line.setAttribute('data-id', id);
+      }
+      const checkbox = line.querySelector('.editor-task-checkbox');
+      if (checkbox) {
+        checkbox.setAttribute('data-id', id);
+      }
+      const textSpan = line.querySelector('.editor-task-text');
+      if (textSpan) {
+        textSpan.setAttribute('data-id', id);
+      }
+    });
+
+    const title = document.getElementById('note-title').value.trim() || '无标题笔记';
+    let content = editor.innerHTML;
     content = this._formatWikiLinks(content);
     
     const note = currentDb.getNote(activeNoteId);
     note.title = title;
     note.content = content;
     
-    const saved = currentDb.saveNote(note);
-    
-    if (document.getElementById('rich-editor').innerHTML !== saved.content) {
-      const selection = window.getSelection();
-      let savedRange = null;
-      if (selection.rangeCount > 0) {
-        savedRange = selection.getRangeAt(0).cloneRange();
-      }
-      
-      document.getElementById('rich-editor').innerHTML = saved.content;
-      
-      if (savedRange) {
-        try {
-          selection.removeAllRanges();
-          selection.addRange(savedRange);
-        } catch(e) {}
-      }
-    }
+    // Save to database
+    currentDb.saveNote(note);
     
     this.showSaveStatus('已保存');
-    this.renderList(document.getElementById('search-notes').value);
+    const searchInput = document.getElementById('search-notes');
+    this.renderList(searchInput ? searchInput.value : '');
     window.dispatchEvent(new Event('data-updated'));
   },
 

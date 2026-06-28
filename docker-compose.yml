@@ -1,14 +1,14 @@
 version: '3.8'
 
 services:
-  noteflow:
+  gnote:
     build: .
-    container_name: noteflow
+    container_name: gnote
     restart: unless-stopped
     ports:
       - "3005:3001"
     volumes:
-      - noteflow-data:/app/server/data
+      - gnote-data:/app/server/data
     environment:
       - PORT=3001
       - API_KEY=change-me-to-a-secure-key
@@ -16,4 +16,4 @@ services:
       - NODE_ENV=production
 
 volumes:
-  noteflow-data:
+  gnote-data:

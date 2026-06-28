@@ -1,4 +1,4 @@
-package com.noteflow.app;
+package com.gnote.app;
 
 import com.getcapacitor.BridgeActivity;
 

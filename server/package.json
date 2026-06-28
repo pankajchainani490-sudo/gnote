@@ -1,7 +1,7 @@
 {
-  "name": "noteflow-server",
+  "name": "gnote-server",
   "version": "1.0.0",
-  "description": "Backend API server for NoteFlow",
+  "description": "Backend API server for GNote",
   "type": "module",
   "main": "index.js",
   "scripts": {

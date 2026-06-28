@@ -1,6 +1,6 @@
 {
-  "name": "NoteFlow",
-  "short_name": "NoteFlow",
+  "name": "GNote",
+  "short_name": "GNote",
   "description": "极简自托管笔记与任务管理工具",
   "start_url": "/",
   "display": "standalone",

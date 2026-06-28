@@ -1,4 +1,4 @@
-// sync-engine.js - Event-driven push sync engine for NoteFlow
+// sync-engine.js - Event-driven push sync engine for GNote
 // Architecture: Write-after-push with server revision numbers
 
 import { apiClient } from './api-client.js';
@@ -89,7 +89,7 @@ export const SyncEngine = {
         data: action === 'upsert' ? dataOrId : null,
         timestamp: now,
         seq: changelogSeq,
-        isNewOffline: action === 'upsert' && !this.getServerRevision() && !localStorage.getItem('noteflow_last_sync_at')
+        isNewOffline: action === 'upsert' && !this.getServerRevision() && !localStorage.getItem('gnote_last_sync_at')
       });
     }
 
@@ -112,23 +112,23 @@ export const SyncEngine = {
 
   getChangelog() {
     try {
-      return JSON.parse(localStorage.getItem('noteflow_changelog')) || [];
+      return JSON.parse(localStorage.getItem('gnote_changelog')) || [];
     } catch (e) {
       return [];
     }
   },
 
   saveChangelog(changelog) {
-    localStorage.setItem('noteflow_changelog', JSON.stringify(changelog));
+    localStorage.setItem('gnote_changelog', JSON.stringify(changelog));
   },
 
   getServerRevision() {
-    const val = localStorage.getItem('noteflow_server_revision');
+    const val = localStorage.getItem('gnote_server_revision');
     return val ? parseInt(val, 10) : 0;
   },
 
   setServerRevision(revision) {
-    localStorage.setItem('noteflow_server_revision', String(revision));
+    localStorage.setItem('gnote_server_revision', String(revision));
   },
 
   // Seed local data as offline changes on first server connection
@@ -155,7 +155,7 @@ export const SyncEngine = {
 
     try {
       let clientRevision = this.getServerRevision();
-      let lastSyncAt = localStorage.getItem('noteflow_last_sync_at') || '';
+      let lastSyncAt = localStorage.getItem('gnote_last_sync_at') || '';
 
       // First-time sync: seed all local data only if we have NEVER synced before
       if (!clientRevision && !lastSyncAt) {
@@ -193,12 +193,12 @@ export const SyncEngine = {
         if (typeof response.serverRevision === 'number') {
           this.setServerRevision(response.serverRevision);
           if (response.syncAt) {
-            localStorage.setItem('noteflow_last_sync_at', response.syncAt);
+            localStorage.setItem('gnote_last_sync_at', response.syncAt);
           }
         } else {
           // Old server fallback: save syncAt and remove server revision
-          localStorage.setItem('noteflow_last_sync_at', response.syncAt);
-          localStorage.removeItem('noteflow_server_revision');
+          localStorage.setItem('gnote_last_sync_at', response.syncAt);
+          localStorage.removeItem('gnote_server_revision');
         }
 
         // Only remove changelog entries with seq <= snapshotMaxSeq

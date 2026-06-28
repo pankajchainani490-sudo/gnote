@@ -1,5 +1,5 @@
 #!/bin/bash
-# NoteFlow Android Launcher Icons Generator
+# GNote Android Launcher Icons Generator
 # Uses macOS built-in sips tool for high-quality resizing
 
 SRC="public/icons/icon-512.png"

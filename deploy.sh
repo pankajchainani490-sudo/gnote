@@ -1,7 +1,7 @@
 #!/bin/bash
-# NoteFlow deployment helper script
+# GNote deployment helper script
 
-echo "=== Starting NoteFlow Deploy ==="
+echo "=== Starting GNote Deploy ==="
 
 # Check if Docker is installed
 if ! [ -x "$(command -v docker)" ]; then
@@ -27,5 +27,5 @@ echo "Starting containers in detached mode..."
 $DOCKER_COMPOSE up -d
 
 echo "=== Deployment finished successfully! ==="
-echo "NoteFlow is now running on http://localhost:3001"
+echo "GNote is now running on http://localhost:3001"
 echo "Make sure to configure your reverse proxy (e.g. Nginx, Caddy) for HTTPS access."

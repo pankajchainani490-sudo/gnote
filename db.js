@@ -1,8 +1,8 @@
-// db.js - LocalStorage Database for NoteFlow (WYSIWYG Rich Text Version)
+// db.js - LocalStorage Database for GNote (WYSIWYG Rich Text Version)
 
-const DB_KEY_NOTES = 'noteflow_notes_v4';
-const DB_KEY_TASKS = 'noteflow_tasks_v4';
-const DB_KEY_MILESTONES = 'noteflow_milestones_v4';
+const DB_KEY_NOTES = 'gnote_notes_v4';
+const DB_KEY_TASKS = 'gnote_tasks_v4';
+const DB_KEY_MILESTONES = 'gnote_milestones_v4';
 
 let changeListener = null;
 
@@ -45,8 +45,8 @@ const SAMPLE_MILESTONES = [
 const SAMPLE_NOTES = [
   {
     id: 'n_1',
-    title: 'NoteFlow 产品灵感与设计原则',
-    content: `<h1>NoteFlow 产品灵感与设计原则</h1>
+    title: 'GNote 产品灵感与设计原则',
+    content: `<h1>GNote 产品灵感与设计原则</h1>
 <p>这是我们在 2026 年夏天开启的项目。我们希望它足够轻量，但又能真正连接“输入”与“产出”。</p>
 <h2>核心设计哲学</h2>
 <blockquote><strong>白色极简</strong>：不要刺眼的五彩斑斓，只要精致的排版和清爽的呼吸感。<br><strong>无感同步</strong>：在笔记里随手写下的待办，就应该是系统的任务，不需要再手动去建任务卡片。</blockquote>
@@ -76,7 +76,7 @@ const SAMPLE_NOTES = [
     id: 'n_2',
     title: '个人周记：2026-W26',
     content: `<h1>个人周记：2026-W26</h1>
-<p>本周重点是完成 NoteFlow 的核心概念验证。</p>
+<p>本周重点是完成 GNote 的核心概念验证。</p>
 <h2>工作总结</h2>
 <ul>
   <li>本周主要在梳理产品规划书，并在实现计划中设计了极简的视觉方案。</li>

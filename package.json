@@ -1,7 +1,7 @@
 {
-  "name": "noteflow",
+  "name": "gnote",
   "version": "1.0.0",
-  "description": "Minimalist self-hosted NoteFlow frontend",
+  "description": "Minimalist self-hosted GNote frontend",
   "type": "module",
   "main": "electron/main.js",
   "scripts": {
@@ -23,8 +23,8 @@
     "vite": "^5.2.11"
   },
   "build": {
-    "appId": "com.noteflow.app",
-    "productName": "NoteFlow",
+    "appId": "com.gnote.app",
+    "productName": "GNote",
     "files": [
       "dist/**/*",
       "electron/**/*",

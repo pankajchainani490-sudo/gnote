@@ -1,6 +1,6 @@
-// sw.js - Service Worker for NoteFlow PWA offline capability
+// sw.js - Service Worker for GNote PWA offline capability
 
-const CACHE_NAME = 'noteflow-cache-v1';
+const CACHE_NAME = 'gnote-cache-v1';
 const STATIC_ASSETS = [
   '/',
   '/index.html',

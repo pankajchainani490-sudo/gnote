@@ -1,4 +1,4 @@
-// dev-settings.js - Developer Mode settings panel controller for NoteFlow sync configuration
+// dev-settings.js - Developer Mode settings panel controller for GNote sync configuration
 
 import { apiClient } from './api-client.js';
 import { SyncEngine } from './sync-engine.js';
@@ -70,9 +70,9 @@ export const DevSettings = {
         await SyncEngine.forceSync();
       } else {
         SyncEngine.stop();
-        localStorage.removeItem('noteflow_server_revision');
-        localStorage.removeItem('noteflow_last_sync_at');
-        localStorage.removeItem('noteflow_changelog');
+        localStorage.removeItem('gnote_server_revision');
+        localStorage.removeItem('gnote_last_sync_at');
+        localStorage.removeItem('gnote_changelog');
         this.updateStatusDisplay();
       }
     });
@@ -119,8 +119,8 @@ export const DevSettings = {
 
   updateStatusDisplay() {
     if (apiClient.isConfigured()) {
-      const rev = localStorage.getItem('noteflow_server_revision');
-      const lastSync = localStorage.getItem('noteflow_last_sync_at');
+      const rev = localStorage.getItem('gnote_server_revision');
+      const lastSync = localStorage.getItem('gnote_last_sync_at');
       if (rev && parseInt(rev, 10) > 0) {
         this.setStatus('success', `已连接 (服务端版本: r${rev})`);
       } else if (lastSync) {

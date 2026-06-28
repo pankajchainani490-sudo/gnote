@@ -311,7 +311,7 @@ export const InsightsView = {
     const notesModified = notes.filter(n => n.updatedAt >= pastWeekStr);
 
     // Formulate report HTML
-    const reportHtml = `<h1>NoteFlow 复盘周报 (${pastWeekDate.toLocaleDateString('zh-CN')} - ${today.toLocaleDateString('zh-CN')})</h1>
+    const reportHtml = `<h1>GNote 复盘周报 (${pastWeekDate.toLocaleDateString('zh-CN')} - ${today.toLocaleDateString('zh-CN')})</h1>
 <p>这一周，我们在打卡与灵感的路上齐头并进。</p>
 
 <h2>里程碑进展</h2>
@@ -367,7 +367,7 @@ ${notesModified.length > 0 ? notesModified.map(n => `  <li>[[${n.title}]]</li>`)
 
   saveReportAsNote() {
     const content = document.getElementById('report-output-textarea').value;
-    const noteTitle = `NoteFlow 复盘周报 (${new Date().toLocaleDateString('zh-CN')})`;
+    const noteTitle = `GNote 复盘周报 (${new Date().toLocaleDateString('zh-CN')})`;
     
     const newNote = {
       title: noteTitle,

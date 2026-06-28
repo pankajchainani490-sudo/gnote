@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
-    <string name="app_name">NoteFlow</string>
-    <string name="title_activity_main">NoteFlow</string>
-    <string name="package_name">com.noteflow.app</string>
-    <string name="custom_url_scheme">com.noteflow.app</string>
+    <string name="app_name">GNote</string>
+    <string name="title_activity_main">GNote</string>
+    <string name="package_name">com.gnote.app</string>
+    <string name="custom_url_scheme">com.gnote.app</string>
 </resources>

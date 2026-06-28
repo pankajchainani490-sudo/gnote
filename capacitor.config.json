@@ -1,6 +1,6 @@
 {
-  "appId": "com.noteflow.app",
-  "appName": "NoteFlow",
+  "appId": "com.gnote.app",
+  "appName": "GNote",
   "webDir": "dist",
   "bundledWebRuntime": false,
   "plugins": {

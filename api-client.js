@@ -1,28 +1,28 @@
-// api-client.js - Light HTTP Client for NoteFlow backend sync
+// api-client.js - Light HTTP Client for GNote backend sync
 import { Capacitor, CapacitorHttp } from '@capacitor/core';
 
 export const apiClient = {
   getServerUrl() {
-    return localStorage.getItem('noteflow_server_url') || '';
+    return localStorage.getItem('gnote_server_url') || '';
   },
 
   getApiKey() {
-    return localStorage.getItem('noteflow_api_key') || '';
+    return localStorage.getItem('gnote_api_key') || '';
   },
 
   configure({ serverUrl, apiKey }) {
     if (serverUrl) {
       // Clean up serverUrl trailing slash
       const cleanUrl = serverUrl.replace(/\/$/, '');
-      localStorage.setItem('noteflow_server_url', cleanUrl);
+      localStorage.setItem('gnote_server_url', cleanUrl);
     } else {
-      localStorage.removeItem('noteflow_server_url');
+      localStorage.removeItem('gnote_server_url');
     }
 
     if (apiKey) {
-      localStorage.setItem('noteflow_api_key', apiKey);
+      localStorage.setItem('gnote_api_key', apiKey);
     } else {
-      localStorage.removeItem('noteflow_api_key');
+      localStorage.removeItem('gnote_api_key');
     }
   },
 

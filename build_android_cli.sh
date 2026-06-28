@@ -1,7 +1,7 @@
 #!/bin/bash
-# NoteFlow Android CLI build helper script (No Android Studio required)
+# GNote Android CLI build helper script (No Android Studio required)
 
-echo "=== NoteFlow Android CLI Builder ==="
+echo "=== GNote Android CLI Builder ==="
 
 # 1. Determine Homebrew SDK Path based on directory existence
 BREW_SDK_PATH=""

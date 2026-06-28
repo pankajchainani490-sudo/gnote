@@ -69,6 +69,6 @@ app.use((err, req, res, next) => {
 });
 
 app.listen(PORT, '0.0.0.0', () => {
-  console.log(`NoteFlow Server running on http://0.0.0.0:${PORT}`);
+  console.log(`GNote Server running on http://0.0.0.0:${PORT}`);
   console.log(`API Auth Key required: ${API_KEY}`);
 });
