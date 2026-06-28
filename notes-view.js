@@ -11,8 +11,13 @@ export const NotesView = {
     // Bind floating toolbar buttons
     const floatingButtons = document.querySelectorAll('.floating-toolbar .toolbar-btn[data-cmd]');
     floatingButtons.forEach(btn => {
+      // Prevent selection from collapsing when button is pressed
+      btn.addEventListener('mousedown', (e) => {
+        e.preventDefault();
+      });
       btn.addEventListener('click', (e) => {
         e.preventDefault();
+        this.isFormatting = true;
         const cmd = btn.dataset.cmd;
         const val = btn.dataset.val || null;
         
@@ -42,13 +47,18 @@ export const NotesView = {
         document.getElementById('rich-editor').focus();
         this.saveCurrentNote();
         
-        // Hide toolbar after formatting
-        document.getElementById('floating-toolbar').classList.add('hidden');
+        setTimeout(() => {
+          this.isFormatting = false;
+        }, 150);
       });
     });
 
     // Bind custom todo button in floating toolbar (supports toggle restore)
-    document.getElementById('btn-toolbar-todo').addEventListener('click', (e) => {
+    const btnTodo = document.getElementById('btn-toolbar-todo');
+    btnTodo.addEventListener('mousedown', (e) => {
+      e.preventDefault(); // Prevent selection collapse
+    });
+    btnTodo.addEventListener('click', (e) => {
       e.preventDefault();
       this.insertTodoBlock();
     });
@@ -65,11 +75,11 @@ export const NotesView = {
       }
     });
 
-    // Hide toolbar when scrolling editor container
+    // Reposition toolbar when scrolling editor container
     const editorWrapper = document.querySelector('.rich-editor-wrapper');
     if (editorWrapper) {
       editorWrapper.addEventListener('scroll', () => {
-        document.getElementById('floating-toolbar').classList.add('hidden');
+        this.handleSelectionChange();
       });
     }
 
@@ -90,22 +100,7 @@ export const NotesView = {
       }, 1000);
     });
 
-    // Handle clicks inside contenteditable (checking task boxes)
-    editor.addEventListener('click', (e) => {
-      if (e.target.classList.contains('editor-task-checkbox')) {
-        const checkbox = e.target;
-        const taskLine = checkbox.closest('.editor-task-line');
-        if (taskLine) {
-          taskLine.classList.toggle('task-completed', checkbox.checked);
-          if (checkbox.checked) {
-            checkbox.setAttribute('checked', 'checked');
-          } else {
-            checkbox.removeAttribute('checked');
-          }
-          this.saveCurrentNote();
-        }
-      }
-    });
+
 
     // Save on title changes & auto-clear default "无标题" or "无标题笔记"
     const titleInput = document.getElementById('note-title');
@@ -213,8 +208,65 @@ export const NotesView = {
       });
     }
 
-    // Handle Enter key inside tasks to support custom newline / break todo
+    // Handle Enter and Backspace keys inside tasks to support seamless transitions (Flat Paragraph Structure)
     editor.addEventListener('keydown', (e) => {
+      if (e.key === 'Backspace') {
+        const selection = window.getSelection();
+        if (selection.rangeCount === 0) return;
+        
+        const range = selection.getRangeAt(0);
+        let node = range.commonAncestorContainer;
+        let taskLine = null;
+        
+        while (node && node !== editor) {
+          if (node.nodeType === Node.ELEMENT_NODE && node.classList.contains('editor-task-line')) {
+            taskLine = node;
+            break;
+          }
+          node = node.parentNode;
+        }
+        
+        if (taskLine) {
+          let isAtStart = false;
+          if (range.startOffset === 0) {
+            if (range.startContainer === taskLine) {
+              isAtStart = true;
+            } else if (taskLine.contains(range.startContainer)) {
+              let current = range.startContainer;
+              isAtStart = true;
+              while (current && current !== taskLine) {
+                if (current.previousSibling) {
+                  isAtStart = false;
+                  break;
+                }
+                current = current.parentNode;
+              }
+            }
+          }
+          
+          if (isAtStart) {
+            e.preventDefault();
+            const text = taskLine.innerText;
+            const p = document.createElement('p');
+            p.innerHTML = text.trim() || '<br>';
+            
+            const taskId = taskLine.dataset.id;
+            if (taskId) {
+              currentDb.deleteTask(taskId);
+            }
+            taskLine.parentNode.replaceChild(p, taskLine);
+            
+            const newRange = document.createRange();
+            newRange.setStart(p, 0);
+            newRange.collapse(true);
+            selection.removeAllRanges();
+            selection.addRange(newRange);
+            
+            this.saveCurrentNote();
+          }
+        }
+      }
+
       if (e.key === 'Enter') {
         const selection = window.getSelection();
         if (selection.rangeCount === 0) return;
@@ -233,8 +285,7 @@ export const NotesView = {
         
         if (taskLine) {
           e.preventDefault();
-          const textSpan = taskLine.querySelector('.editor-task-text');
-          const text = textSpan ? textSpan.innerText.trim() : '';
+          const text = taskLine.innerText.trim();
           
           if (!text) {
             // Convert empty task line back to regular paragraph
@@ -246,7 +297,6 @@ export const NotesView = {
             }
             taskLine.parentNode.replaceChild(p, taskLine);
             
-            // Set caret
             const newRange = document.createRange();
             newRange.setStart(p, 0);
             newRange.collapse(true);
@@ -255,22 +305,17 @@ export const NotesView = {
             
             this.saveCurrentNote();
           } else {
-            // Create a new task line below
+            // Create a new flat task line below
             const newId = 't_' + Math.random().toString(36).substr(2, 5) + '_' + Date.now().toString(36).substr(-4);
-            const newLine = document.createElement('div');
+            const newLine = document.createElement('p');
             newLine.className = 'editor-task-line';
             newLine.dataset.id = newId;
-            newLine.innerHTML = `
-              <input type="checkbox" class="editor-task-checkbox" data-id="${newId}">
-              <span class="editor-task-text" data-id="${newId}"><br></span>
-            `;
+            newLine.innerHTML = '<br>';
             
             taskLine.parentNode.insertBefore(newLine, taskLine.nextSibling);
             
-            // Focus caret in the new task span
-            const newTextSpan = newLine.querySelector('.editor-task-text');
             const newRange = document.createRange();
-            newRange.setStart(newTextSpan, 0);
+            newRange.setStart(newLine, 0);
             newRange.collapse(true);
             selection.removeAllRanges();
             selection.addRange(newRange);
@@ -281,8 +326,21 @@ export const NotesView = {
       }
     });
 
-    // Make blank spaces clickable/selectable inside the editor sheet
+    // Handle clicks inside editor (checkbox clicking via ::before, or blank space selection)
     editor.addEventListener('click', (e) => {
+      const taskLine = e.target.closest('.editor-task-line');
+      if (taskLine) {
+        const rect = taskLine.getBoundingClientRect();
+        const clickX = e.clientX - rect.left;
+        // The checkbox ::before pseudo element is drawn within the left 28px
+        if (clickX >= 0 && clickX <= 28) {
+          e.preventDefault();
+          taskLine.classList.toggle('task-completed');
+          this.saveCurrentNote();
+          return;
+        }
+      }
+
       if (e.target === editor) {
         editor.focus();
         const selection = window.getSelection();
@@ -311,8 +369,12 @@ export const NotesView = {
 
     // Refresh note views on data update (from Kanban or server sync)
     window.addEventListener('data-updated', () => {
-      // Reload active note only if the editor is not currently focused
-      if (activeNoteId && document.activeElement !== document.getElementById('rich-editor')) {
+      // Reload active note only if the user is not actively editing fields
+      const active = document.activeElement;
+      const isEditing = active === document.getElementById('rich-editor') || 
+                        active === document.getElementById('note-title') ||
+                        active === document.getElementById('add-tag-input');
+      if (activeNoteId && !isEditing) {
         this.loadNote(activeNoteId);
       } else {
         const searchInput = document.getElementById('search-notes');
@@ -323,13 +385,106 @@ export const NotesView = {
     this.renderList();
   },
 
+  cleanTaskHtml(htmlContent) {
+    if (!htmlContent) return '';
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(htmlContent, 'text/html');
+    const taskLines = doc.querySelectorAll('.editor-task-line');
+    let modified = false;
+
+    taskLines.forEach(line => {
+      const checkbox = line.querySelector('.editor-task-checkbox');
+      const textSpan = line.querySelector('.editor-task-text');
+      
+      if (checkbox || textSpan || line.tagName.toLowerCase() === 'div') {
+        modified = true;
+        const text = textSpan ? textSpan.innerText : line.innerText;
+        const id = line.getAttribute('data-id') || 't_' + Math.random().toString(36).substr(2, 5) + '_' + Date.now().toString(36).substr(-4);
+        const isCompleted = line.classList.contains('task-completed') || (checkbox && checkbox.checked);
+        const isDoing = line.classList.contains('task-doing');
+        const isAbandoned = line.classList.contains('task-abandoned');
+        
+        const newLine = doc.createElement('p');
+        newLine.className = 'editor-task-line';
+        newLine.setAttribute('data-id', id);
+        
+        if (isCompleted) newLine.classList.add('task-completed');
+        if (isDoing) newLine.classList.add('task-doing');
+        if (isAbandoned) newLine.classList.add('task-abandoned');
+        
+        newLine.innerHTML = text.trim() || '<br>';
+        line.parentNode.replaceChild(newLine, line);
+      }
+    });
+
+    return modified ? doc.body.innerHTML : htmlContent;
+  },
+
+  updateToolbarStates() {
+    const toolbar = document.getElementById('floating-toolbar');
+    if (!toolbar) return;
+    
+    const buttons = toolbar.querySelectorAll('.toolbar-btn[data-cmd]');
+    buttons.forEach(btn => {
+      const cmd = btn.dataset.cmd;
+      const val = btn.dataset.val;
+      
+      let isActive = false;
+      try {
+        if (cmd === 'fontSize') {
+          const currentSize = document.queryCommandValue('fontSize');
+          isActive = String(currentSize) === String(val);
+        } else if (cmd === 'justifyLeft' || cmd === 'justifyCenter' || cmd === 'justifyRight') {
+          isActive = document.queryCommandState(cmd);
+        } else {
+          isActive = document.queryCommandState(cmd);
+        }
+      } catch (e) {}
+      
+      btn.classList.toggle('active', isActive);
+    });
+
+    // Sync "待办" button active class if selection is inside a todo line
+    const btnTodo = document.getElementById('btn-toolbar-todo');
+    if (btnTodo) {
+      const selection = window.getSelection();
+      let isTodo = false;
+      if (selection.rangeCount > 0) {
+        const range = selection.getRangeAt(0);
+        let node = range.commonAncestorContainer;
+        const editor = document.getElementById('rich-editor');
+        while (node && node !== editor) {
+          if (node.nodeType === Node.ELEMENT_NODE && node.classList.contains('editor-task-line')) {
+            isTodo = true;
+            break;
+          }
+          node = node.parentNode;
+        }
+      }
+      btnTodo.classList.toggle('active', isTodo);
+    }
+  },
+
   handleSelectionChange() {
+    if (this.isFormatting) return;
     const selection = window.getSelection();
     const toolbar = document.getElementById('floating-toolbar');
     const editor = document.getElementById('rich-editor');
 
+    // Update active states of formatting buttons unconditionally
+    this.updateToolbarStates();
+
+    // Clear any pending toolbar hiding timeout
+    if (this.hideToolbarTimeout) {
+      clearTimeout(this.hideToolbarTimeout);
+      this.hideToolbarTimeout = null;
+    }
+
     if (!activeNoteId || selection.isCollapsed) {
-      toolbar.classList.add('hidden');
+      // Debounce the hide action by 200ms to preserve toolbar during mouseUp transitions
+      this.hideToolbarTimeout = setTimeout(() => {
+        toolbar.classList.add('hidden');
+      }, 200);
       return;
     }
 
@@ -355,7 +510,9 @@ export const NotesView = {
       const rect = range.getBoundingClientRect();
       
       if (rect.width === 0 || rect.height === 0) {
-        toolbar.classList.add('hidden');
+        this.hideToolbarTimeout = setTimeout(() => {
+          toolbar.classList.add('hidden');
+        }, 200);
         return;
       }
 
@@ -430,7 +587,10 @@ export const NotesView = {
     document.getElementById('editor-active-state').classList.remove('hidden');
 
     document.getElementById('note-title').value = note.title;
-    document.getElementById('rich-editor').innerHTML = note.content;
+    
+    // Automatically clean/migrate task line structure on note load
+    const cleanedContent = this.cleanTaskHtml(note.content);
+    document.getElementById('rich-editor').innerHTML = cleanedContent;
     
     this.renderTags(note.tags);
     this.showSaveStatus('已保存');
@@ -480,6 +640,7 @@ export const NotesView = {
         id = 't_' + Math.random().toString(36).substr(2, 5) + '_' + Date.now().toString(36).substr(-4);
         line.setAttribute('data-id', id);
       }
+      // Supporting both old and new layouts during sync
       const checkbox = line.querySelector('.editor-task-checkbox');
       if (checkbox) {
         checkbox.setAttribute('data-id', id);
@@ -492,6 +653,7 @@ export const NotesView = {
 
     const title = document.getElementById('note-title').value.trim() || '无标题笔记';
     let content = editor.innerHTML;
+    content = this.cleanTaskHtml(content); // Ensure HTML saved is clean and flat
     content = this._formatWikiLinks(content);
     
     const note = currentDb.getNote(activeNoteId);
@@ -513,53 +675,68 @@ export const NotesView = {
 
     const range = selection.getRangeAt(0);
     let node = range.commonAncestorContainer;
-    let taskLine = null;
-
-    // Check if selection is already inside an editor-task-line
-    while (node) {
-      if (node.nodeType === Node.ELEMENT_NODE && node.classList.contains('editor-task-line')) {
-        taskLine = node;
-        break;
+    
+    // Find the parent block node (e.g. P, DIV, H1, H2) inside the editor
+    let blockNode = null;
+    let temp = node;
+    const editor = document.getElementById('rich-editor');
+    while (temp && temp !== editor) {
+      if (temp.nodeType === Node.ELEMENT_NODE) {
+        const tag = temp.tagName.toLowerCase();
+        if (tag === 'p' || tag === 'div' || /^h[1-6]$/.test(tag) || temp.classList.contains('editor-task-line')) {
+          blockNode = temp;
+          break;
+        }
       }
-      node = node.parentNode;
+      temp = temp.parentNode;
     }
 
-    if (taskLine) {
-      // Second click / 二次点击撤销待办任务: Revert task line to a normal paragraph element
-      const textSpan = taskLine.querySelector('.editor-task-text');
-      const text = textSpan ? textSpan.innerText.trim() : taskLine.innerText.trim();
+    if (blockNode && blockNode.classList.contains('editor-task-line')) {
+      // Second click: Revert todo line to a normal paragraph
+      const textSpan = blockNode.querySelector('.editor-task-text');
+      const text = textSpan ? textSpan.innerText : blockNode.innerText;
       
       const p = document.createElement('p');
-      p.innerHTML = text || '<br>';
+      p.innerHTML = text.trim() || '<br>';
       
-      const taskId = taskLine.dataset.id;
+      const taskId = blockNode.dataset.id;
       if (taskId) {
         currentDb.deleteTask(taskId);
       }
       
-      taskLine.parentNode.replaceChild(p, taskLine);
-      document.getElementById('floating-toolbar').classList.add('hidden');
+      blockNode.parentNode.replaceChild(p, blockNode);
       this.saveCurrentNote();
-      window.dispatchEvent(new Event('data-updated'));
       return;
     }
 
-    // First click: Create a task line wrapping selected text
-    const selectedText = selection.toString().trim() || '待办任务';
+    // Convert blockNode to a todo line
+    const text = blockNode ? blockNode.innerText.trim() : (selection.toString().trim() || '待办任务');
     const id = 't_' + Math.random().toString(36).substr(2, 5) + '_' + Date.now().toString(36).substr(-4);
     
-    const taskHtml = `
-      <div class="editor-task-line" data-id="${id}">
-        <input type="checkbox" class="editor-task-checkbox" data-id="${id}">
-        <span class="editor-task-text" data-id="${id}">${selectedText}</span>
-      </div>
-      <p><br></p>
+    const newLine = document.createElement('div');
+    newLine.className = 'editor-task-line';
+    newLine.dataset.id = id;
+    newLine.innerHTML = `
+      <input type="checkbox" class="editor-task-checkbox" data-id="${id}">
+      <span class="editor-task-text" data-id="${id}">${text || '<br>'}</span>
     `;
+
+    if (blockNode && blockNode.parentNode === editor) {
+      blockNode.parentNode.replaceChild(newLine, blockNode);
+    } else {
+      // Fallback: insert at range
+      range.deleteContents();
+      range.insertNode(newLine);
+    }
     
-    document.getElementById('rich-editor').focus();
-    document.execCommand('insertHTML', false, taskHtml);
+    // Position caret at the end of the text span
+    const textSpan = newLine.querySelector('.editor-task-text');
+    const newRange = document.createRange();
+    newRange.selectNodeContents(textSpan);
+    newRange.collapse(false);
+    selection.removeAllRanges();
+    selection.addRange(newRange);
     
-    document.getElementById('floating-toolbar').classList.add('hidden');
     this.saveCurrentNote();
   },
 

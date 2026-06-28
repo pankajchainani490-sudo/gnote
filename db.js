@@ -51,22 +51,10 @@ const SAMPLE_NOTES = [
 <h2>核心设计哲学</h2>
 <blockquote><strong>白色极简</strong>：不要刺眼的五彩斑斓，只要精致的排版和清爽的呼吸感。<br><strong>无感同步</strong>：在笔记里随手写下的待办，就应该是系统的任务，不需要再手动去建任务卡片。</blockquote>
 <h2>待办清单</h2>
-<div class="editor-task-line task-completed" data-id="t_init_1">
-  <input type="checkbox" class="editor-task-checkbox" data-id="t_init_1" checked="checked">
-  <span class="editor-task-text" data-id="t_init_1">设计极简白色风格的主界面</span>
-</div>
-<div class="editor-task-line task-doing" data-id="t_init_2">
-  <input type="checkbox" class="editor-task-checkbox" data-id="t_init_2">
-  <span class="editor-task-text" data-id="t_init_2">实现笔记与任务的双向同步机制</span>
-</div>
-<div class="editor-task-line" data-id="t_init_3">
-  <input type="checkbox" class="editor-task-checkbox" data-id="t_init_3">
-  <span class="editor-task-text" data-id="t_init_3">编写原生 SVG 动效与洞察图表</span>
-</div>
-<div class="editor-task-line" data-id="t_init_4">
-  <input type="checkbox" class="editor-task-checkbox" data-id="t_init_4">
-  <span class="editor-task-text" data-id="t_init_4">设计精美的里程碑时间线组件</span>
-</div>
+<p class="editor-task-line task-completed" data-id="t_init_1">设计极简白色风格的主界面</p>
+<p class="editor-task-line task-doing" data-id="t_init_2">实现笔记与任务的双向同步机制</p>
+<p class="editor-task-line" data-id="t_init_3">编写原生 SVG 动效与洞察图表</p>
+<p class="editor-task-line" data-id="t_init_4">设计精美的里程碑时间线组件</p>
 <p>每一个小小的勾选，都会实时反映在我们的数据大盘上。</p>`,
     tags: ['产品', '灵感'],
     createdAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
@@ -83,18 +71,9 @@ const SAMPLE_NOTES = [
   <li>LocalStorage 作为第一版的底层存储方案，对用户数据隐私友好。</li>
 </ul>
 <h2>下周工作计划</h2>
-<div class="editor-task-line" data-id="t_init_5">
-  <input type="checkbox" class="editor-task-checkbox" data-id="t_init_5">
-  <span class="editor-task-text" data-id="t_init_5">部署静态原型到本地服务进行全功能测试</span>
-</div>
-<div class="editor-task-line" data-id="t_init_6">
-  <input type="checkbox" class="editor-task-checkbox" data-id="t_init_6">
-  <span class="editor-task-text" data-id="t_init_6">邀请两位朋友进行可用性测试</span>
-</div>
-<div class="editor-task-line" data-id="t_init_7">
-  <input type="checkbox" class="editor-task-checkbox" data-id="t_init_7">
-  <span class="editor-task-text" data-id="t_init_7">修复可能存在的 Markdown 解析边缘情况</span>
-</div>`,
+<p class="editor-task-line" data-id="t_init_5">部署静态原型到本地 service 进行全功能测试</p>
+<p class="editor-task-line" data-id="t_init_6">邀请两位朋友进行可用性测试</p>
+<p class="editor-task-line" data-id="t_init_7">修复可能存在的 Markdown 解析边缘情况</p>`,
     tags: ['生活', '周记'],
     createdAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
     updatedAt: new Date(Date.now() - 12 * 60 * 60 * 1000).toISOString()
@@ -509,6 +488,8 @@ export const db = {
 
       if (textSpan) {
         textSpan.innerText = task.text;
+      } else {
+        taskLine.innerText = task.text;
       }
 
       taskLine.classList.remove('task-completed', 'task-doing', 'task-abandoned');

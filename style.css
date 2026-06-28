@@ -617,46 +617,73 @@ h1 {
 
 /* Rich Editor Task Items */
 .editor-task-line {
-  display: flex;
-  align-items: flex-start;
-  gap: 10px;
+  position: relative;
+  display: block;
+  padding: 4px 8px 4px 32px; /* 32px left padding to leave space for pseudo checkbox */
   margin-bottom: 12px;
-  padding: 4px 8px;
   border-radius: var(--radius-sm);
   background-color: transparent;
-  transition: background-color var(--transition-fast);
+  transition: background-color var(--transition-fast), color var(--transition-fast);
+  outline: none;
+  word-break: break-word;
 }
 
 .editor-task-line:hover {
   background-color: #FAFAFA;
 }
 
-.editor-task-checkbox {
+/* Checkbox pseudo element */
+.editor-task-line::before {
+  content: "";
+  position: absolute;
+  left: 8px;
+  top: 7px;
   width: 16px;
   height: 16px;
-  margin-top: 5px;
+  border: 1.5px solid var(--border-medium);
+  border-radius: 4px;
+  background-color: #fff;
   cursor: pointer;
-  flex-shrink: 0;
+  box-sizing: border-box;
+  transition: border-color var(--transition-fast), background-color var(--transition-fast);
 }
 
-.editor-task-text {
-  flex-grow: 1;
-  outline: none;
-  word-break: break-word;
-  transition: var(--transition-fast);
+.editor-task-line:hover::before {
+  border-color: var(--color-primary);
 }
 
-.editor-task-line.task-completed .editor-task-text {
+/* Checked state */
+.editor-task-line.task-completed::before {
+  background-color: var(--color-success);
+  border-color: var(--color-success);
+}
+
+/* Checked mark (draw checkmark) */
+.editor-task-line.task-completed::after {
+  content: "";
+  position: absolute;
+  left: 13px;
+  top: 10px;
+  width: 5px;
+  height: 8px;
+  border: solid white;
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+  box-sizing: border-box;
+}
+
+/* Task Status styles directly on the line */
+.editor-task-line.task-completed {
   text-decoration: line-through;
   color: var(--text-muted);
 }
 
-.editor-task-line.task-doing .editor-task-text {
+.editor-task-line.task-doing {
   color: var(--color-info);
   font-weight: 500;
 }
 
-.editor-task-line.task-abandoned .editor-task-text {
+.editor-task-line.task-abandoned {
   text-decoration: line-through;
   color: var(--color-abandoned);
 }
