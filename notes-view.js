@@ -3,6 +3,7 @@
 let currentDb = null;
 let activeNoteId = null;
 let saveTimeout = null;
+let isComposing = false;
 
 export const NotesView = {
   init(dbInstance) {
@@ -66,11 +67,11 @@ export const NotesView = {
     // Selection monitoring to pop up floating toolbar
     document.addEventListener('selectionchange', () => this.handleSelectionChange());
 
-    // Hide toolbar when clicking outside editor
+    // Hide toolbar when clicking outside the toolbar itself
     const editor = document.getElementById('rich-editor');
     document.addEventListener('mousedown', (e) => {
       const toolbar = document.getElementById('floating-toolbar');
-      if (!toolbar.contains(e.target) && !editor.contains(e.target)) {
+      if (!toolbar.contains(e.target)) {
         toolbar.classList.add('hidden');
       }
     });
@@ -208,8 +209,25 @@ export const NotesView = {
       });
     }
 
+    // Track IME composition events to prevent Enter/Backspace handlers during Chinese input
+    editor.addEventListener('compositionstart', () => {
+      isComposing = true;
+    });
+    editor.addEventListener('compositionend', () => {
+      isComposing = false;
+    });
+
     // Handle Enter and Backspace keys inside tasks to support seamless transitions (Flat Paragraph Structure)
     editor.addEventListener('keydown', (e) => {
+      // Hide toolbar if typing or navigating (unless pressing modifier/shortcut)
+      if (!e.metaKey && !e.ctrlKey) {
+        document.getElementById('floating-toolbar').classList.add('hidden');
+      }
+
+      if (e.isComposing || isComposing || e.keyCode === 229) {
+        return;
+      }
+
       if (e.key === 'Backspace') {
         const selection = window.getSelection();
         if (selection.rangeCount === 0) return;
@@ -474,17 +492,13 @@ export const NotesView = {
     // Update active states of formatting buttons unconditionally
     this.updateToolbarStates();
 
-    // Clear any pending toolbar hiding timeout
-    if (this.hideToolbarTimeout) {
-      clearTimeout(this.hideToolbarTimeout);
-      this.hideToolbarTimeout = null;
+    if (!activeNoteId) {
+      toolbar.classList.add('hidden');
+      return;
     }
 
-    if (!activeNoteId || selection.isCollapsed) {
-      // Debounce the hide action by 200ms to preserve toolbar during mouseUp transitions
-      this.hideToolbarTimeout = setTimeout(() => {
-        toolbar.classList.add('hidden');
-      }, 200);
+    // If selection is collapsed, do NOT hide the toolbar (let mousedown listener handle hiding)
+    if (selection.isCollapsed) {
       return;
     }
 
@@ -500,7 +514,6 @@ export const NotesView = {
     }
 
     if (!isInsideEditor) {
-      toolbar.classList.add('hidden');
       return;
     }
 
@@ -510,9 +523,6 @@ export const NotesView = {
       const rect = range.getBoundingClientRect();
       
       if (rect.width === 0 || rect.height === 0) {
-        this.hideToolbarTimeout = setTimeout(() => {
-          toolbar.classList.add('hidden');
-        }, 200);
         return;
       }
 
@@ -523,7 +533,7 @@ export const NotesView = {
       toolbar.style.top = `${rect.top - toolbarHeight}px`;
       toolbar.style.left = `${rect.left + rect.width / 2}px`;
     } catch (e) {
-      toolbar.classList.add('hidden');
+      // Ignore errors
     }
   },
 
