@@ -1835,31 +1835,7 @@ h1 {
     min-width: 600px;
   }
 
-  /* Floating toolbar wrap protection & pinned styling on mobile */
-  .floating-toolbar {
-    position: static !important;
-    transform: none !important;
-    margin: 0 !important;
-    box-shadow: none !important;
-    border-radius: 0 !important;
-    border-left: none !important;
-    border-right: none !important;
-    border-top: none !important;
-    border-bottom: 1px solid var(--border-light) !important;
-    background-color: #fafafb !important;
-    width: 100% !important;
-    max-width: 100% !important;
-    display: flex !important; /* Force display when editor is active */
-    overflow-x: auto !important;
-    white-space: nowrap !important;
-    -webkit-overflow-scrolling: touch !important;
-    padding: 6px 12px !important;
-    z-index: 10 !important;
-  }
 
-  .floating-toolbar::after {
-    display: none !important;
-  }
 
   /* Milestones and Gantt mobile adjustments */
   .gantt-container {
