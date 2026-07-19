@@ -4,10 +4,12 @@ let currentDb = null;
 let activeNoteId = null;
 let saveTimeout = null;
 let isComposing = false;
+let lastCompositionEndTime = 0;
 
 export const NotesView = {
   init(dbInstance) {
     currentDb = dbInstance;
+    this.isInteractingWithToolbar = false;
 
     // Bind floating toolbar buttons
     const floatingButtons = document.querySelectorAll('.floating-toolbar .toolbar-btn[data-cmd]');
@@ -67,11 +69,20 @@ export const NotesView = {
     // Selection monitoring to pop up floating toolbar
     document.addEventListener('selectionchange', () => this.handleSelectionChange());
 
+    const toolbar = document.getElementById('floating-toolbar');
+    if (toolbar) {
+      toolbar.addEventListener('mousedown', () => {
+        this.isInteractingWithToolbar = true;
+      });
+    }
+    document.addEventListener('mouseup', () => {
+      this.isInteractingWithToolbar = false;
+    });
+
     // Hide toolbar when clicking outside the toolbar itself
     const editor = document.getElementById('rich-editor');
     document.addEventListener('mousedown', (e) => {
-      const toolbar = document.getElementById('floating-toolbar');
-      if (!toolbar.contains(e.target)) {
+      if (toolbar && !toolbar.contains(e.target)) {
         toolbar.classList.add('hidden');
       }
     });
@@ -80,7 +91,9 @@ export const NotesView = {
     const editorWrapper = document.querySelector('.rich-editor-wrapper');
     if (editorWrapper) {
       editorWrapper.addEventListener('scroll', () => {
-        this.handleSelectionChange();
+        if (toolbar) {
+          toolbar.classList.add('hidden');
+        }
       });
     }
 
@@ -215,6 +228,7 @@ export const NotesView = {
     });
     editor.addEventListener('compositionend', () => {
       isComposing = false;
+      lastCompositionEndTime = Date.now();
     });
 
     // Handle Enter and Backspace keys inside tasks to support seamless transitions (Flat Paragraph Structure)
@@ -224,7 +238,7 @@ export const NotesView = {
         document.getElementById('floating-toolbar').classList.add('hidden');
       }
 
-      if (e.isComposing || isComposing || e.keyCode === 229) {
+      if (e.isComposing || isComposing || e.keyCode === 229 || (Date.now() - lastCompositionEndTime < 50)) {
         return;
       }
 
@@ -360,8 +374,11 @@ export const NotesView = {
       }
 
       if (e.target === editor) {
-        editor.focus();
         const selection = window.getSelection();
+        if (selection && !selection.isCollapsed) {
+          return;
+        }
+        editor.focus();
         const range = document.createRange();
         range.selectNodeContents(editor);
         range.collapse(false);
@@ -374,8 +391,11 @@ export const NotesView = {
     if (editorWrapper) {
       editorWrapper.addEventListener('click', (e) => {
         if (e.target === editorWrapper) {
-          editor.focus();
           const selection = window.getSelection();
+          if (selection && !selection.isCollapsed) {
+            return;
+          }
+          editor.focus();
           const range = document.createRange();
           range.selectNodeContents(editor);
           range.collapse(false);
@@ -435,11 +455,16 @@ export const NotesView = {
             console.log('GNote reloading note content (user is idle and content changed)');
             this.loadNote(activeNoteId);
             return;
+          } else {
+            console.log('GNote skipping note reload (content is identical)');
           }
         }
+      } else if (!activeNoteId) {
+        console.log('GNote skipping note reload (no active note)');
+      } else {
+        console.log('GNote skipping note reload (user is actively editing/selecting)');
       }
       
-      console.log('GNote skipping note reload (user is actively editing/selecting or content is identical)');
       const searchInput = document.getElementById('search-notes');
       this.renderList(searchInput ? searchInput.value : '');
     });
@@ -541,8 +566,11 @@ export const NotesView = {
       return;
     }
 
-    // If selection is collapsed, do NOT hide the toolbar (let mousedown listener handle hiding)
+    // If selection is collapsed, hide the toolbar unless we are interacting with it
     if (selection.isCollapsed) {
+      if (!this.isInteractingWithToolbar) {
+        toolbar.classList.add('hidden');
+      }
       return;
     }
 
@@ -708,6 +736,16 @@ export const NotesView = {
   saveCurrentNote() {
     if (!activeNoteId) return;
     
+    // Save current selection and active element before any DOM updates
+    const selection = window.getSelection();
+    let savedRange = null;
+    if (selection && selection.rangeCount > 0) {
+      try {
+        savedRange = selection.getRangeAt(0).cloneRange();
+      } catch (e) {}
+    }
+    const activeEl = document.activeElement;
+
     // Synchronize task IDs on live DOM elements BEFORE reading innerHTML
     const editor = document.getElementById('rich-editor');
     const taskLines = editor.querySelectorAll('.editor-task-line');
@@ -719,11 +757,11 @@ export const NotesView = {
       }
       // Supporting both old and new layouts during sync
       const checkbox = line.querySelector('.editor-task-checkbox');
-      if (checkbox) {
+      if (checkbox && checkbox.getAttribute('data-id') !== id) {
         checkbox.setAttribute('data-id', id);
       }
       const textSpan = line.querySelector('.editor-task-text');
-      if (textSpan) {
+      if (textSpan && textSpan.getAttribute('data-id') !== id) {
         textSpan.setAttribute('data-id', id);
       }
     });
@@ -743,6 +781,20 @@ export const NotesView = {
     this.showSaveStatus('已保存');
     const searchInput = document.getElementById('search-notes');
     this.renderList(searchInput ? searchInput.value : '');
+
+    // Restore active element and selection
+    if (activeEl && typeof activeEl.focus === 'function' && document.body.contains(activeEl)) {
+      try {
+        activeEl.focus();
+      } catch (e) {}
+    }
+    if (savedRange && selection) {
+      try {
+        selection.removeAllRanges();
+        selection.addRange(savedRange);
+      } catch (e) {}
+    }
+
     window.dispatchEvent(new Event('data-updated'));
   },
 
