@@ -566,8 +566,19 @@ export const NotesView = {
   },
 
   renderList(searchQuery = '') {
+    // 1. Save current selection and active element before modifying DOM
+    const selection = window.getSelection();
+    let savedRange = null;
+    if (selection && selection.rangeCount > 0) {
+      try {
+        savedRange = selection.getRangeAt(0).cloneRange();
+      } catch (e) {}
+    }
+    const activeEl = document.activeElement;
+
     const notes = currentDb.getNotes();
     const container = document.getElementById('notes-list-container');
+    if (!container) return;
     container.innerHTML = '';
 
     const filtered = notes.filter(note => {
@@ -580,35 +591,47 @@ export const NotesView = {
 
     if (filtered.length === 0) {
       container.innerHTML = `<div style="padding: 20px; text-align: center; color: var(--text-muted); font-size: 0.85rem;">无符合条件的笔记</div>`;
-      return;
+    } else {
+      filtered.sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
+
+      filtered.forEach(note => {
+        const item = document.createElement('div');
+        item.className = `note-item ${note.id === activeNoteId ? 'active' : ''}`;
+        
+        const cleanExcerpt = note.content
+          .replace(/<[^>]*>/g, ' ')
+          .replace(/\s+/g, ' ')
+          .trim();
+
+        const date = new Date(note.updatedAt).toLocaleDateString('zh-CN', { month: '2-digit', day: '2-digit' });
+        const tagBadges = note.tags.map(tag => `<span class="tag-badge">${tag}</span>`).join('');
+
+        item.innerHTML = `
+          <div class="note-item-title">${note.title || '无标题笔记'}</div>
+          <div class="note-item-excerpt">${cleanExcerpt || '还没有内容...'}</div>
+          <div class="note-item-meta">
+            <span>${date}</span>
+            <div class="note-item-tags">${tagBadges}</div>
+          </div>
+        `;
+
+        item.addEventListener('click', () => this.loadNote(note.id));
+        container.appendChild(item);
+      });
     }
 
-    filtered.sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
-
-    filtered.forEach(note => {
-      const item = document.createElement('div');
-      item.className = `note-item ${note.id === activeNoteId ? 'active' : ''}`;
-      
-      const cleanExcerpt = note.content
-        .replace(/<[^>]*>/g, ' ')
-        .replace(/\s+/g, ' ')
-        .trim();
-
-      const date = new Date(note.updatedAt).toLocaleDateString('zh-CN', { month: '2-digit', day: '2-digit' });
-      const tagBadges = note.tags.map(tag => `<span class="tag-badge">${tag}</span>`).join('');
-
-      item.innerHTML = `
-        <div class="note-item-title">${note.title || '无标题笔记'}</div>
-        <div class="note-item-excerpt">${cleanExcerpt || '还没有内容...'}</div>
-        <div class="note-item-meta">
-          <span>${date}</span>
-          <div class="note-item-tags">${tagBadges}</div>
-        </div>
-      `;
-
-      item.addEventListener('click', () => this.loadNote(note.id));
-      container.appendChild(item);
-    });
+    // 2. Restore active element and selection
+    if (activeEl && typeof activeEl.focus === 'function' && document.body.contains(activeEl)) {
+      try {
+        activeEl.focus();
+      } catch (e) {}
+    }
+    if (savedRange && selection) {
+      try {
+        selection.removeAllRanges();
+        selection.addRange(savedRange);
+      } catch (e) {}
+    }
   },
 
   loadNote(id) {
