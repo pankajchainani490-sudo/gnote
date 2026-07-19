@@ -391,20 +391,27 @@ export const NotesView = {
       const editor = document.getElementById('rich-editor');
       
       let hasSelection = false;
+      let selDetails = 'No Selection';
       try {
         const selection = window.getSelection();
-        if (selection && !selection.isCollapsed && selection.rangeCount > 0) {
-          const range = selection.getRangeAt(0);
-          if (editor && (
-            editor.contains(range.startContainer) || 
-            editor.contains(range.endContainer) || 
-            editor.contains(selection.anchorNode) || 
-            editor.contains(selection.focusNode)
-          )) {
-            hasSelection = true;
+        if (selection) {
+          selDetails = `rangeCount=${selection.rangeCount}, isCollapsed=${selection.isCollapsed}, anchorNode=${selection.anchorNode ? selection.anchorNode.nodeName || selection.anchorNode.tagName : 'null'}, focusNode=${selection.focusNode ? selection.focusNode.nodeName || selection.focusNode.tagName : 'null'}`;
+          
+          if (!selection.isCollapsed && selection.rangeCount > 0) {
+            const range = selection.getRangeAt(0);
+            if (editor && (
+              editor.contains(range.startContainer) || 
+              editor.contains(range.endContainer) || 
+              editor.contains(selection.anchorNode) || 
+              editor.contains(selection.focusNode)
+            )) {
+              hasSelection = true;
+            }
           }
         }
-      } catch (e) {}
+      } catch (e) {
+        selDetails = `Error: ${e.message}`;
+      }
       
       const isEditing = active === editor || 
                         active === document.getElementById('note-title') ||
@@ -415,6 +422,7 @@ export const NotesView = {
         activeElement: active ? active.id || active.tagName : null, 
         isEditing, 
         hasSelection, 
+        selectionDetails: selDetails,
         activeNoteId 
       });
                         
