@@ -427,13 +427,21 @@ export const NotesView = {
       });
                         
       if (activeNoteId && !isEditing) {
-        console.log('GNote reloading note content (user is idle)');
-        this.loadNote(activeNoteId);
-      } else {
-        console.log('GNote skipping note reload (user is actively editing/selecting)');
-        const searchInput = document.getElementById('search-notes');
-        this.renderList(searchInput ? searchInput.value : '');
+        const note = currentDb.getNote(activeNoteId);
+        if (note) {
+          const dbCleaned = this.cleanTaskHtml(note.content);
+          const editorCleaned = this.cleanTaskHtml(editor.innerHTML);
+          if (dbCleaned !== editorCleaned) {
+            console.log('GNote reloading note content (user is idle and content changed)');
+            this.loadNote(activeNoteId);
+            return;
+          }
+        }
       }
+      
+      console.log('GNote skipping note reload (user is actively editing/selecting or content is identical)');
+      const searchInput = document.getElementById('search-notes');
+      this.renderList(searchInput ? searchInput.value : '');
     });
 
     this.renderList();
