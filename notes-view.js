@@ -387,11 +387,18 @@ export const NotesView = {
 
     // Refresh note views on data update (from Kanban or server sync)
     window.addEventListener('data-updated', () => {
-      // Reload active note only if the user is not actively editing fields
       const active = document.activeElement;
-      const isEditing = active === document.getElementById('rich-editor') || 
+      const selection = window.getSelection();
+      const editor = document.getElementById('rich-editor');
+      
+      // Determine if there is an active selection highlight in the editor
+      const hasSelection = selection && !selection.isCollapsed && editor && editor.contains(selection.anchorNode);
+      
+      const isEditing = active === editor || 
                         active === document.getElementById('note-title') ||
-                        active === document.getElementById('add-tag-input');
+                        active === document.getElementById('add-tag-input') ||
+                        hasSelection;
+                        
       if (activeNoteId && !isEditing) {
         this.loadNote(activeNoteId);
       } else {
