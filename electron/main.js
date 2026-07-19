@@ -19,9 +19,6 @@ function createWindow() {
 
   // Load the compiled frontend index.html
   win.loadFile(path.join(__dirname, '../dist/index.html'));
-
-  // Open Developer Tools for debugging
-  win.webContents.openDevTools();
 }
 
 app.whenReady().then(() => {
