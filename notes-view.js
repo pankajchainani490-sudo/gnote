@@ -388,20 +388,41 @@ export const NotesView = {
     // Refresh note views on data update (from Kanban or server sync)
     window.addEventListener('data-updated', () => {
       const active = document.activeElement;
-      const selection = window.getSelection();
       const editor = document.getElementById('rich-editor');
       
-      // Determine if there is an active selection highlight in the editor
-      const hasSelection = selection && !selection.isCollapsed && editor && editor.contains(selection.anchorNode);
+      let hasSelection = false;
+      try {
+        const selection = window.getSelection();
+        if (selection && !selection.isCollapsed && selection.rangeCount > 0) {
+          const range = selection.getRangeAt(0);
+          if (editor && (
+            editor.contains(range.startContainer) || 
+            editor.contains(range.endContainer) || 
+            editor.contains(selection.anchorNode) || 
+            editor.contains(selection.focusNode)
+          )) {
+            hasSelection = true;
+          }
+        }
+      } catch (e) {}
       
       const isEditing = active === editor || 
                         active === document.getElementById('note-title') ||
                         active === document.getElementById('add-tag-input') ||
                         hasSelection;
                         
+      console.log('GNote data-updated triggered:', { 
+        activeElement: active ? active.id || active.tagName : null, 
+        isEditing, 
+        hasSelection, 
+        activeNoteId 
+      });
+                        
       if (activeNoteId && !isEditing) {
+        console.log('GNote reloading note content (user is idle)');
         this.loadNote(activeNoteId);
       } else {
+        console.log('GNote skipping note reload (user is actively editing/selecting)');
         const searchInput = document.getElementById('search-notes');
         this.renderList(searchInput ? searchInput.value : '');
       }
